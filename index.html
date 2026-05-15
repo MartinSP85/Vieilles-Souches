@@ -92,6 +92,15 @@
   .align-input:focus { border-color: #888; }
   .btn-danger { padding: 12px; border-radius: 12px; border: 1.5px solid #ffcdd2; background: #ffebee; font-size: 14px; font-weight: 500; cursor: pointer; color: #c62828; transition: all 0.15s; }
   .btn-danger:hover { background: #ffcdd2; }
+  .config-player-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #f0f0f0; }
+  .config-player-row:last-child { border-bottom: none; }
+  .config-player-info { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .config-player-num { background: #111; color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; min-width: 28px; text-align: center; }
+  .cote-select { padding: 6px 8px; border-radius: 8px; border: 1px solid #ddd; font-size: 13px; font-weight: 600; background: #fff; color: #111; cursor: pointer; }
+  .points-total-box { border-radius: 10px; padding: 12px 14px; font-size: 15px; font-weight: 600; text-align: center; margin-bottom: 12px; transition: background 0.2s, color 0.2s; }
+  .points-total-box.neutral { background: #f7f7f7; color: #666; }
+  .points-total-box.ok { background: #e8f5e9; color: #1b5e20; }
+  .points-total-box.over { background: #ffebee; color: #c62828; }
 </style>
 </head>
 <body>
@@ -243,6 +252,11 @@
       </div>
 
       <div class="card">
+        <div class="section-title">👥 Configuration des joueurs</div>
+        <div id="joueurs-config-list"></div>
+      </div>
+
+      <div class="card">
         <div class="section-title">🏒 Alignement</div>
         <div class="align-row">
           <span class="align-label">🥅 Gardien</span>
@@ -275,6 +289,7 @@
           </div>
         </div>
         <datalist id="list-joueurs-cap"></datalist>
+        <div id="align-total-box" class="points-total-box neutral">Total : 0 / 140 pts</div>
         <div style="display:flex;gap:8px;margin-top:4px">
           <button class="confirm-btn" id="btn-publier-align" style="flex:2" onclick="sauvegarderAlignement()">Publier l'alignement</button>
           <button class="btn-danger" style="flex:1" onclick="effacerAlignement()">Effacer</button>
@@ -303,6 +318,23 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+
+  const joueurs = [
+    { nom: 'Martin St-Pierre',       numero: '22' },
+    { nom: 'Ramon Sepulveda',        numero: '7'  },
+    { nom: 'Annie Choquette',        numero: '11' },
+    { nom: 'Myriam Neveu',           numero: '11' },
+    { nom: 'Karyne Wagner',          numero: '24' },
+    { nom: 'Laurie Guinard-Gélinas', numero: '15' },
+    { nom: 'Louis Philippe Blouin',  numero: '4'  },
+    { nom: 'Mathieu Wagner',         numero: '45' },
+    { nom: 'Philippe Bordeleau',     numero: '31' },
+    { nom: 'Véronique Cadieux',      numero: '5'  },
+  ];
+  const COTES = ['H12', 'H11', 'W8', 'W7'];
+  const POINTS = { H12: 10, H11: 20, W8: 10, W7: 20 };
+  let cotesData = {};
+  let cotesListener = null;
 
   const matches = [
     {label:"@ Monkeys Family", heure:"Lundi 18 mai 2026 à 20h15", surface:"Surface (2) - LDK"},
@@ -460,6 +492,8 @@
       const capIdx = document.getElementById('match-cap').value;
       listenCap(capIdx);
       listenCapAlign(capIdx);
+      listenCotes();
+      initAlignInputs();
     } else {
       document.getElementById('pin-error').innerHTML = '<div class="error-box">Code incorrect. Réessaie.</div>';
     }
@@ -486,6 +520,64 @@
       setTimeout(() => btn.textContent = '📋 Copier le message Messenger', 2000);
     });
   };
+
+  function toSafe(nom) { return nom.replace(/[.#$\[\]]/g, '_'); }
+
+  function renderJoueursConfig(cotes) {
+    cotesData = cotes;
+    const list = document.getElementById('joueurs-config-list');
+    if (!list) return;
+    list.innerHTML = joueurs.map(j => {
+      const sn = toSafe(j.nom);
+      const cur = cotes[sn] || '';
+      return `<div class="config-player-row">
+        <div class="config-player-info">
+          <span class="config-player-num">${j.numero}</span>
+          <span>${j.nom}</span>
+        </div>
+        <select class="cote-select" onchange="setCote('${sn}', this.value)">
+          <option value="">— cote —</option>
+          ${COTES.map(c => `<option value="${c}" ${cur === c ? 'selected' : ''}>${c} · ${POINTS[c]} pts</option>`).join('')}
+        </select>
+      </div>`;
+    }).join('');
+    calculerTotal();
+  }
+
+  function listenCotes() {
+    if (cotesListener) cotesListener();
+    cotesListener = onValue(ref(db, 'config/cotes'), (snapshot) => {
+      renderJoueursConfig(snapshot.val() || {});
+    });
+  }
+
+  window.setCote = async function(sn, value) {
+    if (value) await set(ref(db, `config/cotes/${sn}`), value);
+    else await remove(ref(db, `config/cotes/${sn}`));
+  };
+
+  function calculerTotal() {
+    const ids = ['align-gardien','align-def1','align-def2','align-def3','align-def4',
+                 'align-att1','align-att2','align-att3','align-att4'];
+    let total = 0;
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.value.trim()) {
+        const cote = cotesData[toSafe(el.value.trim())];
+        if (cote) total += POINTS[cote] || 0;
+      }
+    });
+    const box = document.getElementById('align-total-box');
+    if (!box) return;
+    box.textContent = `Total : ${total} / 140 pts`;
+    box.className = 'points-total-box ' + (total === 0 ? 'neutral' : total > 140 ? 'over' : 'ok');
+  }
+
+  function initAlignInputs() {
+    document.querySelectorAll('.align-input').forEach(input => {
+      input.addEventListener('input', calculerTotal);
+    });
+  }
 
   function updateDatalist(votesData) {
     const eligible = Object.keys(votesData).filter(n => votesData[n] === 'present' || votesData[n] === 'remplace');
@@ -543,6 +635,7 @@
       document.getElementById('align-att2').value = data.attaquants?.[1] || '';
       document.getElementById('align-att3').value = data.attaquants?.[2] || '';
       document.getElementById('align-att4').value = data.attaquants?.[3] || '';
+      calculerTotal();
     });
   }
 
