@@ -78,9 +78,12 @@
   .lineup-player { background: #f0f4ff; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 500; color: #1a237e; }
   .lineup-slot-empty { background: #f7f7f7; border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #bbb; font-style: italic; }
   .lineup-not-published { text-align: center; padding: 3rem 1rem; color: #bbb; }
-  .lineup-line { margin-bottom: 10px; }
-  .lineup-line-header { font-size: 11px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
   .lineup-line-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .lineup-line-block { background: #f9f9f9; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .lineup-line-title { font-size: 13px; font-weight: 700; color: #111; margin-bottom: 10px; }
+  .lineup-sub { margin-bottom: 8px; }
+  .lineup-sub:last-child { margin-bottom: 0; }
+  .lineup-sub-label { font-size: 11px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 5px; }
   .align-row { margin-bottom: 1.25rem; }
   .align-label { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
   .align-line-label { font-size: 11px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; display: block; }
@@ -246,26 +249,26 @@
           <input class="align-input" id="align-gardien" list="list-joueurs-cap" placeholder="Nom du gardien..." autocomplete="off" />
         </div>
         <div class="align-row">
-          <span class="align-label">🛡️ Défenseurs</span>
-          <span class="align-line-label">Ligne 1</span>
+          <span class="align-label">Ligne 1</span>
+          <span class="align-line-label">🛡️ Défenseurs</span>
           <div class="align-line-grid">
             <input class="align-input" id="align-def1" list="list-joueurs-cap" placeholder="Défenseur 1..." autocomplete="off" />
             <input class="align-input" id="align-def2" list="list-joueurs-cap" placeholder="Défenseur 2..." autocomplete="off" />
           </div>
-          <span class="align-line-label">Ligne 2</span>
-          <div class="align-line-grid">
-            <input class="align-input" id="align-def3" list="list-joueurs-cap" placeholder="Défenseur 3..." autocomplete="off" />
-            <input class="align-input" id="align-def4" list="list-joueurs-cap" placeholder="Défenseur 4..." autocomplete="off" />
-          </div>
-        </div>
-        <div class="align-row">
-          <span class="align-label">⚡ Attaquants</span>
-          <span class="align-line-label">Ligne 1</span>
+          <span class="align-line-label">⚡ Attaquants</span>
           <div class="align-line-grid">
             <input class="align-input" id="align-att1" list="list-joueurs-cap" placeholder="Attaquant 1..." autocomplete="off" />
             <input class="align-input" id="align-att2" list="list-joueurs-cap" placeholder="Attaquant 2..." autocomplete="off" />
           </div>
-          <span class="align-line-label">Ligne 2</span>
+        </div>
+        <div class="align-row">
+          <span class="align-label">Ligne 2</span>
+          <span class="align-line-label">🛡️ Défenseurs</span>
+          <div class="align-line-grid">
+            <input class="align-input" id="align-def3" list="list-joueurs-cap" placeholder="Défenseur 3..." autocomplete="off" />
+            <input class="align-input" id="align-def4" list="list-joueurs-cap" placeholder="Défenseur 4..." autocomplete="off" />
+          </div>
+          <span class="align-line-label">⚡ Attaquants</span>
           <div class="align-line-grid">
             <input class="align-input" id="align-att3" list="list-joueurs-cap" placeholder="Attaquant 3..." autocomplete="off" />
             <input class="align-input" id="align-att4" list="list-joueurs-cap" placeholder="Attaquant 4..." autocomplete="off" />
@@ -499,26 +502,25 @@
     const slot = (name) => name
       ? `<div class="lineup-player">${name}</div>`
       : `<div class="lineup-slot-empty">—</div>`;
-    const line = (label, n1, n2) => `
-      <div class="lineup-line">
-        <div class="lineup-line-header">${label}</div>
-        <div class="lineup-line-grid">${slot(n1)}${slot(n2)}</div>
+    const lineBlock = (num, d1, d2, a1, a2) => `
+      <div class="lineup-line-block">
+        <div class="lineup-line-title">Ligne ${num}</div>
+        <div class="lineup-sub">
+          <div class="lineup-sub-label">🛡️ Défenseurs</div>
+          <div class="lineup-line-grid">${slot(d1)}${slot(d2)}</div>
+        </div>
+        <div class="lineup-sub">
+          <div class="lineup-sub-label">⚡ Attaquants</div>
+          <div class="lineup-line-grid">${slot(a1)}${slot(a2)}</div>
+        </div>
       </div>`;
     el.innerHTML = `
       <div class="lineup-position">
         <div class="lineup-position-title">🥅 Gardien</div>
         ${slot(data.gardien)}
       </div>
-      <div class="lineup-position">
-        <div class="lineup-position-title">🛡️ Défenseurs</div>
-        ${line('Ligne 1', data.defenseurs?.[0], data.defenseurs?.[1])}
-        ${line('Ligne 2', data.defenseurs?.[2], data.defenseurs?.[3])}
-      </div>
-      <div class="lineup-position">
-        <div class="lineup-position-title">⚡ Attaquants</div>
-        ${line('Ligne 1', data.attaquants?.[0], data.attaquants?.[1])}
-        ${line('Ligne 2', data.attaquants?.[2], data.attaquants?.[3])}
-      </div>`;
+      ${lineBlock(1, data.defenseurs?.[0], data.defenseurs?.[1], data.attaquants?.[0], data.attaquants?.[1])}
+      ${lineBlock(2, data.defenseurs?.[2], data.defenseurs?.[3], data.attaquants?.[2], data.attaquants?.[3])}`;
   }
 
   function listenAlignement(idx) {
