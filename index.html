@@ -96,6 +96,8 @@
   .config-player-row:last-child { border-bottom: none; }
   .config-player-info { display: flex; align-items: center; gap: 8px; font-size: 14px; }
   .config-player-num { background: #111; color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; min-width: 28px; text-align: center; }
+  .numero-input { background: #111; color: #fff; border: none; border-radius: 6px; padding: 3px 6px; font-size: 12px; font-weight: 700; width: 44px; text-align: center; outline: none; cursor: pointer; }
+  .numero-input:focus { background: #333; }
   .cote-select { padding: 6px 8px; border-radius: 8px; border: 1px solid #ddd; font-size: 13px; font-weight: 600; background: #fff; color: #111; cursor: pointer; }
   .points-total-box { border-radius: 10px; padding: 12px 14px; font-size: 15px; font-weight: 600; text-align: center; margin-bottom: 12px; transition: background 0.2s, color 0.2s; }
   .points-total-box.neutral { background: #f7f7f7; color: #666; }
@@ -255,10 +257,11 @@
           </div>
           <select id="new-player-cote" style="margin-bottom:10px">
             <option value="">— Cote —</option>
-            <option value="H12">H12 · 10 pts</option>
-            <option value="H11">H11 · 20 pts</option>
-            <option value="W8">W8 · 10 pts</option>
-            <option value="W7">W7 · 20 pts</option>
+            <option value="H12">H12</option>
+            <option value="H11">H11</option>
+            <option value="W8">W8</option>
+            <option value="W7">W7</option>
+            <option value="NC">NC</option>
           </select>
           <button class="confirm-btn" onclick="ajouterJoueur()">+ Ajouter</button>
           <div id="add-player-error" style="margin-top:8px"></div>
@@ -340,10 +343,12 @@
     { nom: 'Philippe Bordeleau',     numero: '31' },
     { nom: 'Véronique Cadieux',      numero: '5'  },
   ];
-  const COTES = ['H12', 'H11', 'W8', 'W7'];
-  const POINTS = { H12: 10, H11: 20, W8: 10, W7: 20 };
+  const COTES = ['H12', 'H11', 'W8', 'W7', 'NC'];
+  const POINTS = { H12: 10, H11: 20, W8: 10, W7: 20, NC: 10 };
   let cotesData = {};
   let cotesListener = null;
+  let numerosData = {};
+  let numerosListener = null;
 
   const matches = [
     {label:"@ Monkeys Family", heure:"Lundi 18 mai 2026 à 20h15", surface:"Surface (2) - LDK"},
@@ -504,6 +509,7 @@
       listenCap(capIdx);
       listenCapAlign(capIdx);
       listenCotes();
+      listenNumeros();
       initAlignInputs();
     } else {
       document.getElementById('pin-error').innerHTML = '<div class="error-box">Code incorrect. Réessaie.</div>';
@@ -535,8 +541,13 @@
   function toSafe(nom) { return nom.replace(/[.#$\[\]]/g, '_'); }
 
   function getAllJoueurs() {
-    const base = joueurs.map(j => ({ ...j, sn: toSafe(j.nom), isExtra: false }));
-    const extras = Object.entries(extrasJoueurs).map(([sn, j]) => ({ ...j, sn, isExtra: true }));
+    const base = joueurs.map(j => {
+      const sn = toSafe(j.nom);
+      return { ...j, numero: numerosData[sn] || j.numero, sn, isExtra: false };
+    });
+    const extras = Object.entries(extrasJoueurs).map(([sn, j]) => ({
+      ...j, numero: numerosData[sn] || j.numero, sn, isExtra: true
+    }));
     return [...base, ...extras].sort((a, b) => a.nom.localeCompare(b.nom));
   }
 
@@ -584,6 +595,23 @@
     if (!confirm('Supprimer ce joueur ?')) return;
     await remove(ref(db, `config/joueurs_extra/${sn}`));
     await remove(ref(db, `config/cotes/${sn}`));
+    await remove(ref(db, `config/numeros/${sn}`));
+  };
+
+  function listenNumeros() {
+    if (numerosListener) numerosListener();
+    numerosListener = onValue(ref(db, 'config/numeros'), (snapshot) => {
+      numerosData = snapshot.val() || {};
+      updatePlayerSelect();
+      if (pinValidated) renderJoueursConfig(cotesData);
+    });
+  }
+
+  window.setNumero = async function(sn, value) {
+    const v = value.trim();
+    if (v) await set(ref(db, `config/numeros/${sn}`), v);
+    else await remove(ref(db, `config/numeros/${sn}`));
+    updatePlayerSelect();
   };
 
   function renderJoueursConfig(cotes) {
@@ -597,13 +625,13 @@
         : '';
       return `<div class="config-player-row">
         <div class="config-player-info">
-          <span class="config-player-num">${j.numero}</span>
+          <input class="numero-input" value="${j.numero}" maxlength="3" onchange="setNumero('${j.sn}', this.value)" title="Numéro" />
           <span>${j.nom}</span>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <select class="cote-select" onchange="setCote('${j.sn}', this.value)">
             <option value="">—</option>
-            ${COTES.map(c => `<option value="${c}" ${cur === c ? 'selected' : ''}>${c} · ${POINTS[c]} pts</option>`).join('')}
+            ${COTES.map(c => `<option value="${c}" ${cur === c ? 'selected' : ''}>${c}</option>`).join('')}
           </select>
           ${delBtn}
         </div>
