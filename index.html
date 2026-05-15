@@ -73,6 +73,17 @@
   input[type="password"]:focus { border-color: #888; }
   .delete-vote-btn { border: none; background: transparent; color: #bbb; font-size: 14px; cursor: pointer; padding: 4px 6px; border-radius: 6px; line-height: 1; transition: all 0.15s; }
   .delete-vote-btn:hover { background: #ffebee; color: #c62828; }
+  .lineup-position { margin-bottom: 1.25rem; }
+  .lineup-position-title { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .lineup-player { background: #f0f4ff; border-radius: 10px; padding: 11px 14px; margin-bottom: 6px; font-size: 14px; font-weight: 500; color: #1a237e; }
+  .lineup-slot-empty { background: #f7f7f7; border-radius: 10px; padding: 11px 14px; margin-bottom: 6px; font-size: 14px; color: #bbb; font-style: italic; }
+  .lineup-not-published { text-align: center; padding: 3rem 1rem; color: #bbb; }
+  .align-row { margin-bottom: 1.25rem; }
+  .align-label { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
+  .align-input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 14px; color: #111; outline: none; margin-bottom: 8px; background: #fff; }
+  .align-input:focus { border-color: #888; }
+  .btn-danger { padding: 12px; border-radius: 12px; border: 1.5px solid #ffcdd2; background: #ffebee; font-size: 14px; font-weight: 500; cursor: pointer; color: #c62828; transition: all 0.15s; }
+  .btn-danger:hover { background: #ffcdd2; }
 </style>
 </head>
 <body>
@@ -84,6 +95,7 @@
 
   <div class="tab-bar">
     <button class="tab active" onclick="switchTab('joueur')">Joueur</button>
+    <button class="tab" onclick="switchTab('alignement')">Alignement</button>
     <button class="tab" onclick="switchTab('capitaine')">Capitaine</button>
   </div>
 
@@ -162,6 +174,29 @@
     </div>
   </div>
 
+  <!-- VUE ALIGNEMENT -->
+  <div class="view" id="view-alignement">
+    <div class="card">
+      <select id="match-align" onchange="updateAlignementMatch()">
+        <option value="0">Lundi 18 mai — @ Monkeys Family</option>
+        <option value="1">Lundi 25 mai — @ Veggies</option>
+        <option value="2">Lundi 1 juin — vs Wolfpack</option>
+        <option value="3">Lundi 8 juin — @ Pucking Legends</option>
+      </select>
+      <div class="match-info">
+        <div class="titre" id="al-titre">@ Monkeys Family</div>
+        <div class="detail" id="al-heure">⏰ Lundi 18 mai 2026 à 20h15</div>
+        <div class="detail" id="al-surface">📍 Surface (2) - LDK</div>
+      </div>
+      <div id="alignement-display">
+        <div class="lineup-not-published">
+          <div style="font-size:40px;margin-bottom:10px">🏒</div>
+          <div>L'alignement n'est pas encore publié</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- VUE CAPITAINE -->
   <div class="view" id="view-capitaine">
     <div class="card">
@@ -197,6 +232,29 @@
           <div class="empty">Aucune réponse pour ce match</div>
         </div>
         <button class="copy-btn" onclick="copierMessage()">📋 Copier le message Messenger</button>
+      </div>
+
+      <div class="card">
+        <div class="section-title">🏒 Alignement</div>
+        <div class="align-row">
+          <span class="align-label">🥅 Gardien</span>
+          <input class="align-input" id="align-gardien" list="list-joueurs-cap" placeholder="Nom du gardien..." autocomplete="off" />
+        </div>
+        <div class="align-row">
+          <span class="align-label">🛡️ Défenseurs</span>
+          <input class="align-input" id="align-def1" list="list-joueurs-cap" placeholder="Défenseur 1..." autocomplete="off" />
+          <input class="align-input" id="align-def2" list="list-joueurs-cap" placeholder="Défenseur 2..." autocomplete="off" />
+        </div>
+        <div class="align-row">
+          <span class="align-label">⚡ Attaquants</span>
+          <input class="align-input" id="align-att1" list="list-joueurs-cap" placeholder="Attaquant 1..." autocomplete="off" />
+          <input class="align-input" id="align-att2" list="list-joueurs-cap" placeholder="Attaquant 2..." autocomplete="off" />
+        </div>
+        <datalist id="list-joueurs-cap"></datalist>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="confirm-btn" id="btn-publier-align" style="flex:2" onclick="sauvegarderAlignement()">Publier l'alignement</button>
+          <button class="btn-danger" style="flex:1" onclick="effacerAlignement()">Effacer</button>
+        </div>
       </div>
     </div>
   </div>
@@ -237,6 +295,8 @@
   let pinValidated = false;
   let joueurListener = null;
   let capListener = null;
+  let alignListener = null;
+  let capAlignListener = null;
 
   function getPlayerInfo() {
     const val = document.getElementById('player-select').value;
@@ -305,6 +365,7 @@
       document.getElementById('cnt-p').textContent = counts.p;
       document.getElementById('cnt-a').textContent = counts.a;
       document.getElementById('cnt-r').textContent = counts.r;
+      updateDatalist(data);
     });
   }
 
@@ -315,10 +376,17 @@
       document.querySelectorAll('.tab')[0].classList.add('active');
       document.getElementById('view-joueur').classList.add('active');
       listenJoueur(document.getElementById('match-joueur').value);
-    } else {
+    } else if (tab === 'alignement') {
       document.querySelectorAll('.tab')[1].classList.add('active');
+      document.getElementById('view-alignement').classList.add('active');
+      listenAlignement(document.getElementById('match-align').value);
+    } else {
+      document.querySelectorAll('.tab')[2].classList.add('active');
       document.getElementById('view-capitaine').classList.add('active');
-      if (pinValidated) listenCap(document.getElementById('match-cap').value);
+      if (pinValidated) {
+        listenCap(document.getElementById('match-cap').value);
+        listenCapAlign(document.getElementById('match-cap').value);
+      }
     }
   };
 
@@ -365,7 +433,9 @@
       pinValidated = true;
       document.getElementById('cap-content').style.display = 'block';
       document.getElementById('pin-error').innerHTML = '';
-      listenCap(document.getElementById('match-cap').value);
+      const capIdx = document.getElementById('match-cap').value;
+      listenCap(capIdx);
+      listenCapAlign(capIdx);
     } else {
       document.getElementById('pin-error').innerHTML = '<div class="error-box">Code incorrect. Réessaie.</div>';
     }
@@ -379,6 +449,7 @@
     document.getElementById('c-heure').textContent = '⏰ ' + m.heure;
     document.getElementById('c-surface').textContent = '📍 ' + m.surface;
     listenCap(idx);
+    listenCapAlign(idx);
   };
 
   window.copierMessage = function() {
@@ -390,6 +461,92 @@
       btn.textContent = '✅ Copié !';
       setTimeout(() => btn.textContent = '📋 Copier le message Messenger', 2000);
     });
+  };
+
+  function updateDatalist(votesData) {
+    const eligible = Object.keys(votesData).filter(n => votesData[n] === 'present' || votesData[n] === 'remplace');
+    const datalist = document.getElementById('list-joueurs-cap');
+    if (datalist) datalist.innerHTML = eligible.map(n => `<option value="${n}">`).join('');
+  }
+
+  function renderAlignementDisplay(data) {
+    const el = document.getElementById('alignement-display');
+    if (!data || !data.publie) {
+      el.innerHTML = `<div class="lineup-not-published"><div style="font-size:40px;margin-bottom:10px">🏒</div><div>L'alignement n'est pas encore publié</div></div>`;
+      return;
+    }
+    const slot = (name) => name
+      ? `<div class="lineup-player">${name}</div>`
+      : `<div class="lineup-slot-empty">Non assigné</div>`;
+    el.innerHTML = `
+      <div class="lineup-position">
+        <div class="lineup-position-title">🥅 Gardien</div>
+        ${slot(data.gardien)}
+      </div>
+      <div class="lineup-position">
+        <div class="lineup-position-title">🛡️ Défenseurs</div>
+        ${slot(data.defenseurs?.[0])}
+        ${slot(data.defenseurs?.[1])}
+      </div>
+      <div class="lineup-position">
+        <div class="lineup-position-title">⚡ Attaquants</div>
+        ${slot(data.attaquants?.[0])}
+        ${slot(data.attaquants?.[1])}
+      </div>`;
+  }
+
+  function listenAlignement(idx) {
+    if (alignListener) alignListener();
+    alignListener = onValue(ref(db, `alignement/match_${idx}`), (snapshot) => {
+      renderAlignementDisplay(snapshot.val());
+    });
+  }
+
+  function listenCapAlign(idx) {
+    if (capAlignListener) capAlignListener();
+    capAlignListener = onValue(ref(db, `alignement/match_${idx}`), (snapshot) => {
+      const data = snapshot.val() || {};
+      document.getElementById('align-gardien').value = data.gardien || '';
+      document.getElementById('align-def1').value = data.defenseurs?.[0] || '';
+      document.getElementById('align-def2').value = data.defenseurs?.[1] || '';
+      document.getElementById('align-att1').value = data.attaquants?.[0] || '';
+      document.getElementById('align-att2').value = data.attaquants?.[1] || '';
+    });
+  }
+
+  window.updateAlignementMatch = function() {
+    const idx = document.getElementById('match-align').value;
+    const m = matches[idx];
+    document.getElementById('al-titre').textContent = m.label;
+    document.getElementById('al-heure').textContent = '⏰ ' + m.heure;
+    document.getElementById('al-surface').textContent = '📍 ' + m.surface;
+    listenAlignement(idx);
+  };
+
+  window.sauvegarderAlignement = async function() {
+    const idx = document.getElementById('match-cap').value;
+    const alignement = {
+      gardien: document.getElementById('align-gardien').value.trim(),
+      defenseurs: [
+        document.getElementById('align-def1').value.trim(),
+        document.getElementById('align-def2').value.trim()
+      ],
+      attaquants: [
+        document.getElementById('align-att1').value.trim(),
+        document.getElementById('align-att2').value.trim()
+      ],
+      publie: true
+    };
+    await set(ref(db, `alignement/match_${idx}`), alignement);
+    const btn = document.getElementById('btn-publier-align');
+    btn.textContent = '✅ Publié !';
+    setTimeout(() => { btn.textContent = 'Publier l\'alignement'; }, 2000);
+  };
+
+  window.effacerAlignement = async function() {
+    if (!confirm('Effacer l\'alignement publié ?')) return;
+    const idx = document.getElementById('match-cap').value;
+    await remove(ref(db, `alignement/match_${idx}`));
   };
 
   listenJoueur(0);
