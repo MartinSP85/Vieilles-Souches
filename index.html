@@ -101,6 +101,13 @@
   .points-total-box.neutral { background: #f7f7f7; color: #666; }
   .points-total-box.ok { background: #e8f5e9; color: #1b5e20; }
   .points-total-box.over { background: #ffebee; color: #c62828; }
+  .wide-grid { display: flex; flex-direction: column; gap: 1rem; }
+  .wide-grid .card { margin-bottom: 0; }
+  @media (min-width: 640px) {
+    .container { max-width: 940px; }
+    .wide-grid { flex-direction: row; align-items: start; }
+    .wide-grid > * { flex: 1; min-width: 0; }
+  }
 </style>
 </head>
 <body>
@@ -119,62 +126,48 @@
   <!-- VUE JOUEUR -->
   <div class="view active" id="view-joueur">
     <div class="card">
-
       <select id="match-joueur" onchange="updateInfoJoueur()">
         <option value="0">Lundi 18 mai — @ Monkeys Family</option>
         <option value="1">Lundi 25 mai — @ Veggies</option>
         <option value="2">Lundi 1 juin — vs Wolfpack</option>
         <option value="3">Lundi 8 juin — @ Pucking Legends</option>
       </select>
-
       <div class="match-info">
         <div class="titre" id="j-titre">@ Monkeys Family</div>
         <div class="detail" id="j-heure">⏰ Lundi 18 mai 2026 à 20h15</div>
         <div class="detail" id="j-surface">📍 Surface (2) - LDK</div>
       </div>
-
-      <div class="player-select-wrap">
-        <span class="player-select-label">Qui es-tu ?</span>
-        <div class="player-select-inner">
-          <select id="player-select" onchange="onPlayerChange()">
-            <option value="">— Sélectionne ton nom —</option>
-            <option value="Martin St-Pierre|22">Martin St-Pierre</option>
-            <option value="Ramon Sepulveda|7">Ramon Sepulveda</option>
-            <option value="Annie Choquette|11">Annie Choquette</option>
-            <option value="Myriam Neveu|11">Myriam Neveu</option>
-            <option value="Karyne Wagner|24">Karyne Wagner</option>
-            <option value="Laurie Guinard-Gélinas|15">Laurie Guinard-Gélinas</option>
-            <option value="Louis Philippe Blouin|4">Louis Philippe Blouin</option>
-            <option value="Mathieu Wagner|45">Mathieu Wagner</option>
-            <option value="Philippe Bordeleau|31">Philippe Bordeleau</option>
-            <option value="Véronique Cadieux|5">Véronique Cadieux</option>
-          </select>
-          <div class="numero" id="player-numero">—</div>
+    </div>
+    <div class="wide-grid">
+      <div class="card">
+        <div class="player-select-wrap">
+          <span class="player-select-label">Qui es-tu ?</span>
+          <div class="player-select-inner">
+            <select id="player-select" onchange="onPlayerChange()">
+              <option value="">— Sélectionne ton nom —</option>
+            </select>
+            <div class="numero" id="player-numero">—</div>
+          </div>
         </div>
+        <div class="section-title">Es-tu disponible ?</div>
+        <div class="vote-grid">
+          <button class="vote-btn" id="btn-present" onclick="selectVote('present')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Présent(e)
+          </button>
+          <button class="vote-btn" id="btn-absent" onclick="selectVote('absent')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Absent(e)
+          </button>
+          <button class="vote-btn" id="btn-remplace" onclick="selectVote('remplace')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+            Dispo pour remplacer
+          </button>
+        </div>
+        <button class="confirm-btn" id="confirm-btn" onclick="confirmerVote()" disabled>Confirmer ma réponse</button>
+        <div id="success-zone"></div>
       </div>
-
-      <div class="section-title">Es-tu disponible ?</div>
-      <div class="vote-grid">
-        <button class="vote-btn" id="btn-present" onclick="selectVote('present')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          Présent(e)
-        </button>
-        <button class="vote-btn" id="btn-absent" onclick="selectVote('absent')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          Absent(e)
-        </button>
-        <button class="vote-btn" id="btn-remplace" onclick="selectVote('remplace')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
-          Dispo pour remplacer
-        </button>
-      </div>
-
-      <button class="confirm-btn" id="confirm-btn" onclick="confirmerVote()" disabled>Confirmer ma réponse</button>
-      <div id="success-zone"></div>
-
-      <div class="divider"></div>
-
-      <div class="results-section">
+      <div class="card">
         <div class="results-header">
           <div class="section-title" style="margin-bottom:0"><span class="live-dot"></span>Résultats en direct</div>
         </div>
@@ -187,7 +180,6 @@
           <div class="empty">Aucune réponse pour l'instant</div>
         </div>
       </div>
-
     </div>
   </div>
 
@@ -251,13 +243,29 @@
         <button class="copy-btn" onclick="copierMessage()">📋 Copier le message Messenger</button>
       </div>
 
-      <div class="card">
-        <div class="section-title">👥 Configuration des joueurs</div>
-        <div id="joueurs-config-list"></div>
-      </div>
+      <div class="wide-grid">
+        <div class="card">
+          <div class="section-title">👥 Configuration des joueurs</div>
+          <div id="joueurs-config-list"></div>
+          <div class="divider"></div>
+          <div class="section-title" style="margin-bottom:8px">Ajouter un joueur</div>
+          <div style="display:grid;grid-template-columns:1fr 64px;gap:8px;margin-bottom:8px">
+            <input class="align-input" id="new-player-nom" placeholder="Nom complet..." autocomplete="off" />
+            <input class="align-input" id="new-player-num" placeholder="#" maxlength="3" style="text-align:center" autocomplete="off" />
+          </div>
+          <select id="new-player-cote" style="margin-bottom:10px">
+            <option value="">— Cote —</option>
+            <option value="H12">H12 · 10 pts</option>
+            <option value="H11">H11 · 20 pts</option>
+            <option value="W8">W8 · 10 pts</option>
+            <option value="W7">W7 · 20 pts</option>
+          </select>
+          <button class="confirm-btn" onclick="ajouterJoueur()">+ Ajouter</button>
+          <div id="add-player-error" style="margin-top:8px"></div>
+        </div>
 
-      <div class="card">
-        <div class="section-title">🏒 Alignement</div>
+        <div class="card">
+          <div class="section-title">🏒 Alignement</div>
         <div class="align-row">
           <span class="align-label">🥅 Gardien</span>
           <input class="align-input" id="align-gardien" list="list-joueurs-cap" placeholder="Nom du gardien..." autocomplete="off" />
@@ -293,6 +301,7 @@
         <div style="display:flex;gap:8px;margin-top:4px">
           <button class="confirm-btn" id="btn-publier-align" style="flex:2" onclick="sauvegarderAlignement()">Publier l'alignement</button>
           <button class="btn-danger" style="flex:1" onclick="effacerAlignement()">Effacer</button>
+        </div>
         </div>
       </div>
     </div>
@@ -353,6 +362,8 @@
   let capListener = null;
   let alignListener = null;
   let capAlignListener = null;
+  let extrasJoueurs = {};
+  let extrasListener = null;
 
   function getPlayerInfo() {
     const val = document.getElementById('player-select').value;
@@ -523,22 +534,79 @@
 
   function toSafe(nom) { return nom.replace(/[.#$\[\]]/g, '_'); }
 
+  function getAllJoueurs() {
+    const base = joueurs.map(j => ({ ...j, sn: toSafe(j.nom), isExtra: false }));
+    const extras = Object.entries(extrasJoueurs).map(([sn, j]) => ({ ...j, sn, isExtra: true }));
+    return [...base, ...extras].sort((a, b) => a.nom.localeCompare(b.nom));
+  }
+
+  function updatePlayerSelect() {
+    const sel = document.getElementById('player-select');
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Sélectionne ton nom —</option>' +
+      getAllJoueurs().map(j => `<option value="${j.nom}|${j.numero}">${j.nom}</option>`).join('');
+    sel.value = cur;
+  }
+
+  function listenExtras() {
+    if (extrasListener) extrasListener();
+    extrasListener = onValue(ref(db, 'config/joueurs_extra'), (snapshot) => {
+      extrasJoueurs = snapshot.val() || {};
+      updatePlayerSelect();
+      if (pinValidated) renderJoueursConfig(cotesData);
+    });
+  }
+
+  window.ajouterJoueur = async function() {
+    const nom = document.getElementById('new-player-nom').value.trim();
+    const numero = document.getElementById('new-player-num').value.trim();
+    const cote = document.getElementById('new-player-cote').value;
+    const errEl = document.getElementById('add-player-error');
+    if (!nom || !numero) {
+      errEl.innerHTML = '<div class="error-box">Nom et numéro requis.</div>';
+      return;
+    }
+    const sn = toSafe(nom);
+    if (getAllJoueurs().some(j => j.sn === sn)) {
+      errEl.innerHTML = '<div class="error-box">Ce joueur existe déjà.</div>';
+      return;
+    }
+    errEl.innerHTML = '';
+    await set(ref(db, `config/joueurs_extra/${sn}`), { nom, numero });
+    if (cote) await set(ref(db, `config/cotes/${sn}`), cote);
+    document.getElementById('new-player-nom').value = '';
+    document.getElementById('new-player-num').value = '';
+    document.getElementById('new-player-cote').value = '';
+  };
+
+  window.supprimerJoueur = async function(sn) {
+    if (!confirm('Supprimer ce joueur ?')) return;
+    await remove(ref(db, `config/joueurs_extra/${sn}`));
+    await remove(ref(db, `config/cotes/${sn}`));
+  };
+
   function renderJoueursConfig(cotes) {
     cotesData = cotes;
     const list = document.getElementById('joueurs-config-list');
     if (!list) return;
-    list.innerHTML = joueurs.map(j => {
-      const sn = toSafe(j.nom);
-      const cur = cotes[sn] || '';
+    list.innerHTML = getAllJoueurs().map(j => {
+      const cur = cotes[j.sn] || '';
+      const delBtn = j.isExtra
+        ? `<button class="delete-vote-btn" onclick="supprimerJoueur('${j.sn}')" title="Supprimer">✕</button>`
+        : '';
       return `<div class="config-player-row">
         <div class="config-player-info">
           <span class="config-player-num">${j.numero}</span>
           <span>${j.nom}</span>
         </div>
-        <select class="cote-select" onchange="setCote('${sn}', this.value)">
-          <option value="">— cote —</option>
-          ${COTES.map(c => `<option value="${c}" ${cur === c ? 'selected' : ''}>${c} · ${POINTS[c]} pts</option>`).join('')}
-        </select>
+        <div style="display:flex;align-items:center;gap:6px">
+          <select class="cote-select" onchange="setCote('${j.sn}', this.value)">
+            <option value="">—</option>
+            ${COTES.map(c => `<option value="${c}" ${cur === c ? 'selected' : ''}>${c} · ${POINTS[c]} pts</option>`).join('')}
+          </select>
+          ${delBtn}
+        </div>
       </div>`;
     }).join('');
     calculerTotal();
@@ -580,9 +648,11 @@
   }
 
   function updateDatalist(votesData) {
-    const eligible = Object.keys(votesData).filter(n => votesData[n] === 'present' || votesData[n] === 'remplace');
+    const eligible = new Set(Object.keys(votesData).filter(n => votesData[n] === 'present' || votesData[n] === 'remplace'));
+    const allNoms = getAllJoueurs().map(j => j.nom);
+    const sorted = [...new Set([...allNoms.filter(n => eligible.has(toSafe(n))), ...allNoms])];
     const datalist = document.getElementById('list-joueurs-cap');
-    if (datalist) datalist.innerHTML = eligible.map(n => `<option value="${n}">`).join('');
+    if (datalist) datalist.innerHTML = sorted.map(n => `<option value="${n}">`).join('');
   }
 
   function renderAlignementDisplay(data) {
@@ -678,6 +748,7 @@
     await remove(ref(db, `alignement/match_${idx}`));
   };
 
+  listenExtras();
   listenJoueur(0);
 </script>
 </body>
