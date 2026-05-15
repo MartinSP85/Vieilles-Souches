@@ -351,6 +351,7 @@
   let cotesListener = null;
   let numerosData = {};
   let numerosListener = null;
+  let currentVotesData = {};
 
   const matches = [
     {label:"@ Monkeys Family", heure:"Lundi 18 mai 2026 à 20h15", surface:"Surface (2) - LDK"},
@@ -655,10 +656,8 @@
   };
 
   function calculerTotal() {
-    const ids = ['align-gardien','align-def1','align-def2','align-def3','align-def4',
-                 'align-att1','align-att2','align-att3','align-att4'];
     let total = 0;
-    ids.forEach(id => {
+    ALIGN_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (el && el.value.trim()) {
         const cote = cotesData[toSafe(el.value.trim())];
@@ -669,6 +668,7 @@
     if (!box) return;
     box.textContent = `Total : ${total} / 140 pts`;
     box.className = 'points-total-box ' + (total === 0 ? 'neutral' : total > 140 ? 'over' : 'ok');
+    updateDatalist();
   }
 
   function initAlignInputs() {
@@ -677,10 +677,19 @@
     });
   }
 
+  const ALIGN_IDS = ['align-gardien','align-def1','align-def2','align-def3','align-def4',
+                     'align-att1','align-att2','align-att3','align-att4'];
+
   function updateDatalist(votesData) {
-    const eligible = new Set(Object.keys(votesData).filter(n => votesData[n] === 'present' || votesData[n] === 'remplace'));
+    if (votesData !== undefined) currentVotesData = votesData;
+    const used = new Set(ALIGN_IDS.map(id => {
+      const el = document.getElementById(id);
+      return el ? el.value.trim() : '';
+    }).filter(v => v));
+    const eligible = new Set(Object.keys(currentVotesData).filter(n => currentVotesData[n] === 'present' || currentVotesData[n] === 'remplace'));
     const allNoms = getAllJoueurs().map(j => j.nom);
-    const sorted = [...new Set([...allNoms.filter(n => eligible.has(toSafe(n))), ...allNoms])];
+    const sorted = [...new Set([...allNoms.filter(n => eligible.has(toSafe(n))), ...allNoms])]
+      .filter(n => !used.has(n));
     const datalist = document.getElementById('list-joueurs-cap');
     if (datalist) datalist.innerHTML = sorted.map(n => `<option value="${n}">`).join('');
   }
@@ -736,6 +745,7 @@
       document.getElementById('align-att3').value = data.attaquants?.[2] || '';
       document.getElementById('align-att4').value = data.attaquants?.[3] || '';
       calculerTotal();
+      updateDatalist();
     });
   }
 
@@ -749,6 +759,11 @@
   };
 
   window.sauvegarderAlignement = async function() {
+    const noms = ALIGN_IDS.map(id => document.getElementById(id).value.trim()).filter(v => v);
+    if (noms.length !== new Set(noms).size) {
+      alert('Un joueur ne peut être assigné qu\'à une seule position.');
+      return;
+    }
     const idx = document.getElementById('match-cap').value;
     const alignement = {
       gardien: document.getElementById('align-gardien').value.trim(),
