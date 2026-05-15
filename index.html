@@ -758,8 +758,7 @@
     }).filter(v => v));
     const eligible = new Set(Object.keys(currentVotesData).filter(n => currentVotesData[n] === 'present' || currentVotesData[n] === 'remplace'));
     const allNoms = getAllJoueurs().map(j => j.nom);
-    const sorted = [...new Set([...allNoms.filter(n => eligible.has(toSafe(n))), ...allNoms])]
-      .filter(n => !used.has(n));
+    const sorted = allNoms.filter(n => eligible.has(toSafe(n)) && !used.has(n));
     const datalist = document.getElementById('list-joueurs-cap');
     if (datalist) datalist.innerHTML = sorted.map(n => `<option value="${n}">`).join('');
   }
