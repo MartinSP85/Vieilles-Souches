@@ -71,6 +71,8 @@
   .results-section { margin-top: 1.25rem; }
   input[type="password"] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 15px; color: #111; outline: none; }
   input[type="password"]:focus { border-color: #888; }
+  .delete-vote-btn { border: none; background: transparent; color: #bbb; font-size: 14px; cursor: pointer; padding: 4px 6px; border-radius: 6px; line-height: 1; transition: all 0.15s; }
+  .delete-vote-btn:hover { background: #ffebee; color: #c62828; }
 </style>
 </head>
 <body>
@@ -202,7 +204,7 @@
 
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+  import { getDatabase, ref, set, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
   // ⚙️ REMPLACE CES VALEURS PAR TES INFOS FIREBASE
   const firebaseConfig = {
@@ -249,7 +251,7 @@
     checkReady();
   };
 
-  function renderVotersList(data, listId) {
+  function renderVotersList(data, listId, isCapitaine = false) {
     const noms = Object.keys(data);
     const list = document.getElementById(listId);
     if (noms.length === 0) {
@@ -268,10 +270,21 @@
           <div class="voter-avatar ${avatarClass[data[n]]}">${n.charAt(0).toUpperCase()}</div>
           <span>${n}</span>
         </div>
-        <span class="badge ${badgeClass[data[n]]}">${badgeLabel[data[n]]}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="badge ${badgeClass[data[n]]}">${badgeLabel[data[n]]}</span>
+          ${isCapitaine ? `<button class="delete-vote-btn" onclick="retirerVote('${n}')" title="Retirer ce vote">✕</button>` : ''}
+        </div>
       </div>`).join('');
     return { p, a, r };
   }
+
+  window.retirerVote = async function(nom) {
+    const idx = document.getElementById('match-cap').value;
+    const safeName = nom.replace(/[.#$\[\]]/g, '_');
+    if (confirm(`Retirer le vote de ${nom} ?`)) {
+      await remove(ref(db, `votes/match_${idx}/${safeName}`));
+    }
+  };
 
   function listenJoueur(idx) {
     if (joueurListener) joueurListener();
@@ -288,7 +301,7 @@
     if (capListener) capListener();
     capListener = onValue(ref(db, `votes/match_${idx}`), (snapshot) => {
       const data = snapshot.val() || {};
-      const counts = renderVotersList(data, 'voters-list');
+      const counts = renderVotersList(data, 'voters-list', true);
       document.getElementById('cnt-p').textContent = counts.p;
       document.getElementById('cnt-a').textContent = counts.a;
       document.getElementById('cnt-r').textContent = counts.r;
