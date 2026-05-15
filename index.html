@@ -21,8 +21,11 @@
   .match-info { background: #f7f7f7; border-radius: 10px; padding: 12px 14px; margin-bottom: 1.25rem; }
   .match-info .titre { font-size: 15px; font-weight: 600; color: #111; margin-bottom: 4px; }
   .match-info .detail { font-size: 13px; color: #555; margin-top: 3px; }
-  input[type="text"] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 15px; color: #111; outline: none; margin-bottom: 1rem; }
-  input[type="text"]:focus { border-color: #888; }
+  .player-select-wrap { margin-bottom: 1rem; }
+  .player-select-label { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+  .player-select-inner { display: flex; gap: 8px; align-items: center; }
+  .player-select-inner select { margin-bottom: 0; flex: 1; font-size: 15px; }
+  .numero { background: #111; color: #fff; border-radius: 8px; padding: 5px 10px; font-size: 13px; font-weight: 700; white-space: nowrap; min-width: 36px; text-align: center; }
   .vote-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
   .vote-btn { padding: 1rem 0.5rem; border-radius: 12px; border: 1.5px solid #e0e0e0; background: #fff; cursor: pointer; font-size: 13px; font-weight: 500; color: #333; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: all 0.15s; }
   .vote-btn svg { width: 28px; height: 28px; }
@@ -34,6 +37,7 @@
   .confirm-btn:hover { background: #333; }
   .confirm-btn:disabled { background: #ccc; cursor: not-allowed; }
   .success-box { background: #e8f5e9; border-radius: 12px; padding: 1rem; text-align: center; color: #1b5e20; font-size: 14px; font-weight: 500; margin-top: 1rem; }
+  .section-title { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
   .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
   .stat { background: #f7f7f7; border-radius: 12px; padding: 1rem; text-align: center; }
   .stat-num { font-size: 32px; font-weight: 700; }
@@ -41,10 +45,14 @@
   .stat-num.red { color: #c62828; }
   .stat-num.blue { color: #1565c0; }
   .stat-label { font-size: 12px; color: #666; margin-top: 4px; }
-  .section-title { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .voters-list { background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #eee; }
+  .voters-list { background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #eee; margin-bottom: 1rem; }
   .voter-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
   .voter-row:last-child { border-bottom: none; }
+  .voter-name { display: flex; align-items: center; gap: 8px; }
+  .voter-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .avatar-present { background: #e8f5e9; color: #1b5e20; }
+  .avatar-absent { background: #ffebee; color: #7f0000; }
+  .avatar-remplace { background: #e3f2fd; color: #0d47a1; }
   .badge { font-size: 12px; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
   .badge-present { background: #e8f5e9; color: #1b5e20; }
   .badge-absent { background: #ffebee; color: #7f0000; }
@@ -52,11 +60,17 @@
   .empty { text-align: center; padding: 2rem; color: #aaa; font-size: 14px; }
   .copy-btn { width: 100%; margin-top: 1rem; padding: 12px; border-radius: 12px; border: 1.5px solid #ddd; background: #fff; font-size: 14px; font-weight: 500; cursor: pointer; color: #333; }
   .copy-btn:hover { background: #f5f5f5; }
-  .loading { text-align: center; padding: 2rem; color: #aaa; font-size: 14px; }
   .pin-row { display: flex; gap: 8px; margin-bottom: 1rem; }
   .pin-row input { flex: 1; }
   .pin-hint { font-size: 12px; color: #888; margin-top: -10px; margin-bottom: 1rem; }
   .error-box { background: #ffebee; border-radius: 10px; padding: 10px 14px; color: #7f0000; font-size: 13px; margin-bottom: 1rem; }
+  .divider { height: 1px; background: #f0f0f0; margin: 1.25rem 0; }
+  .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #4caf50; display: inline-block; margin-right: 5px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .results-section { margin-top: 1.25rem; }
+  input[type="password"] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 15px; color: #111; outline: none; }
+  input[type="password"]:focus { border-color: #888; }
 </style>
 </head>
 <body>
@@ -74,18 +88,41 @@
   <!-- VUE JOUEUR -->
   <div class="view active" id="view-joueur">
     <div class="card">
+
       <select id="match-joueur" onchange="updateInfoJoueur()">
         <option value="0">Lundi 18 mai — @ Monkeys Family</option>
         <option value="1">Lundi 25 mai — @ Veggies</option>
         <option value="2">Lundi 1 juin — vs Wolfpack</option>
         <option value="3">Lundi 8 juin — @ Pucking Legends</option>
       </select>
+
       <div class="match-info">
         <div class="titre" id="j-titre">@ Monkeys Family</div>
         <div class="detail" id="j-heure">⏰ Lundi 18 mai 2026 à 20h15</div>
         <div class="detail" id="j-surface">📍 Surface (2) - LDK</div>
       </div>
-      <input type="text" id="player-name" placeholder="Ton prénom" oninput="checkReady()" />
+
+      <div class="player-select-wrap">
+        <span class="player-select-label">Qui es-tu ?</span>
+        <div class="player-select-inner">
+          <select id="player-select" onchange="onPlayerChange()">
+            <option value="">— Sélectionne ton nom —</option>
+            <option value="Martin St-Pierre|22">Martin St-Pierre</option>
+            <option value="Ramon Sepulveda|7">Ramon Sepulveda</option>
+            <option value="Annie Choquette|11">Annie Choquette</option>
+            <option value="Myriam Neveu|11">Myriam Neveu</option>
+            <option value="Karyne Wagner|24">Karyne Wagner</option>
+            <option value="Laurie Guinard-Gélinas|15">Laurie Guinard-Gélinas</option>
+            <option value="Louis Philippe Blouin|4">Louis Philippe Blouin</option>
+            <option value="Mathieu Wagner|45">Mathieu Wagner</option>
+            <option value="Philippe Bordeleau|31">Philippe Bordeleau</option>
+            <option value="Véronique Cadieux|5">Véronique Cadieux</option>
+          </select>
+          <div class="numero" id="player-numero">—</div>
+        </div>
+      </div>
+
+      <div class="section-title">Es-tu disponible ?</div>
       <div class="vote-grid">
         <button class="vote-btn" id="btn-present" onclick="selectVote('present')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -100,8 +137,26 @@
           Dispo pour remplacer
         </button>
       </div>
+
       <button class="confirm-btn" id="confirm-btn" onclick="confirmerVote()" disabled>Confirmer ma réponse</button>
       <div id="success-zone"></div>
+
+      <div class="divider"></div>
+
+      <div class="results-section">
+        <div class="results-header">
+          <div class="section-title" style="margin-bottom:0"><span class="live-dot"></span>Résultats en direct</div>
+        </div>
+        <div class="stats-grid" style="margin-top:10px">
+          <div class="stat"><div class="stat-num green" id="j-cnt-p">0</div><div class="stat-label">Présent(e)s</div></div>
+          <div class="stat"><div class="stat-num red" id="j-cnt-a">0</div><div class="stat-label">Absent(e)s</div></div>
+          <div class="stat"><div class="stat-num blue" id="j-cnt-r">0</div><div class="stat-label">Remplaçant(e)s</div></div>
+        </div>
+        <div class="voters-list" id="j-voters-list">
+          <div class="empty">Aucune réponse pour l'instant</div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -110,12 +165,13 @@
     <div class="card">
       <div class="section-title">Code capitaine</div>
       <div class="pin-row">
-        <input type="password" id="cap-pin" placeholder="Entrer le code (4 chiffres)" maxlength="4" oninput="checkPin()" />
+        <input type="password" id="cap-pin" placeholder="Code à 4 chiffres" maxlength="4" />
         <button class="confirm-btn" style="width:auto;padding:10px 16px;font-size:14px" onclick="validerPin()">OK</button>
       </div>
-      <div class="pin-hint">Le code est défini dans votre fichier de configuration.</div>
+      <div class="pin-hint">Accès réservé au capitaine.</div>
       <div id="pin-error"></div>
     </div>
+
     <div id="cap-content" style="display:none">
       <div class="card">
         <select id="match-cap" onchange="updateCapitaineView()">
@@ -136,7 +192,7 @@
         </div>
         <div class="section-title">Réponses reçues</div>
         <div class="voters-list" id="voters-list">
-          <div class="loading">Chargement...</div>
+          <div class="empty">Aucune réponse pour ce match</div>
         </div>
         <button class="copy-btn" onclick="copierMessage()">📋 Copier le message Messenger</button>
       </div>
@@ -144,24 +200,22 @@
   </div>
 </div>
 
-<!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
   import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
   // ⚙️ REMPLACE CES VALEURS PAR TES INFOS FIREBASE
   const firebaseConfig = {
-  apiKey: "AIzaSyCPCLWX5qZx8rUu9uowwvJcNyprurvgaA0",
-  authDomain: "vieilles-souches.firebaseapp.com",
-  databaseURL: "https://vieilles-souches-default-rtdb.firebaseio.com",
-  projectId: "vieilles-souches",
-  storageBucket: "vieilles-souches.firebasestorage.app",
-  messagingSenderId: "1019477657616",
-  appId: "1:1019477657616:web:4a043cbb6c18f161f22295",
-  measurementId: "G-QEWC87VQ2Q"
-};
+    apiKey: "AIzaSyCPCLWX5qZx8rUu9uowwvJcNyprurvgaA0",
+    authDomain: "vieilles-souches.firebaseapp.com",
+    databaseURL: "https://vieilles-souches-default-rtdb.firebaseio.com",
+    projectId: "vieilles-souches",
+    storageBucket: "vieilles-souches.firebasestorage.app",
+    messagingSenderId: "1019477657616",
+    appId: "1:1019477657616:web:4a043cbb6c18f161f22295"
+  };
 
-  const CAP_PIN = "2260"; // 🔒 Change ce code à 4 chiffres
+  const CAP_PIN = "2260"; // 🔒 Change ce code
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
@@ -173,24 +227,91 @@
     {label:"@ Pucking Legends", heure:"Lundi 8 juin 2026 à 17h45", surface:"Surface (1) - Knapper"},
   ];
 
+  const badgeClass = {present:'badge-present', absent:'badge-absent', remplace:'badge-remplace'};
+  const badgeLabel = {present:'Présent(e)', absent:'Absent(e)', remplace:'Remplaçant(e)'};
+  const avatarClass = {present:'avatar-present', absent:'avatar-absent', remplace:'avatar-remplace'};
+
   let selectedVote = null;
   let pinValidated = false;
+  let joueurListener = null;
+  let capListener = null;
+
+  function getPlayerInfo() {
+    const val = document.getElementById('player-select').value;
+    if (!val) return { nom: '', numero: '' };
+    const parts = val.split('|');
+    return { nom: parts[0], numero: parts[1] };
+  }
+
+  window.onPlayerChange = function() {
+    const { numero } = getPlayerInfo();
+    document.getElementById('player-numero').textContent = numero || '—';
+    checkReady();
+  };
+
+  function renderVotersList(data, listId) {
+    const noms = Object.keys(data);
+    const list = document.getElementById(listId);
+    if (noms.length === 0) {
+      list.innerHTML = '<div class="empty">Aucune réponse pour l\'instant</div>';
+      return { p: 0, a: 0, r: 0 };
+    }
+    let p = 0, a = 0, r = 0;
+    noms.forEach(n => { if(data[n]==='present') p++; else if(data[n]==='absent') a++; else r++; });
+    const sorted = [...noms].sort((a, b) => {
+      const order = {present:0, remplace:1, absent:2};
+      return order[data[a]] - order[data[b]];
+    });
+    list.innerHTML = sorted.map(n => `
+      <div class="voter-row">
+        <div class="voter-name">
+          <div class="voter-avatar ${avatarClass[data[n]]}">${n.charAt(0).toUpperCase()}</div>
+          <span>${n}</span>
+        </div>
+        <span class="badge ${badgeClass[data[n]]}">${badgeLabel[data[n]]}</span>
+      </div>`).join('');
+    return { p, a, r };
+  }
+
+  function listenJoueur(idx) {
+    if (joueurListener) joueurListener();
+    joueurListener = onValue(ref(db, `votes/match_${idx}`), (snapshot) => {
+      const data = snapshot.val() || {};
+      const counts = renderVotersList(data, 'j-voters-list');
+      document.getElementById('j-cnt-p').textContent = counts.p;
+      document.getElementById('j-cnt-a').textContent = counts.a;
+      document.getElementById('j-cnt-r').textContent = counts.r;
+    });
+  }
+
+  function listenCap(idx) {
+    if (capListener) capListener();
+    capListener = onValue(ref(db, `votes/match_${idx}`), (snapshot) => {
+      const data = snapshot.val() || {};
+      const counts = renderVotersList(data, 'voters-list');
+      document.getElementById('cnt-p').textContent = counts.p;
+      document.getElementById('cnt-a').textContent = counts.a;
+      document.getElementById('cnt-r').textContent = counts.r;
+    });
+  }
 
   window.switchTab = function(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    if(tab === 'joueur') {
+    if (tab === 'joueur') {
       document.querySelectorAll('.tab')[0].classList.add('active');
       document.getElementById('view-joueur').classList.add('active');
+      listenJoueur(document.getElementById('match-joueur').value);
     } else {
       document.querySelectorAll('.tab')[1].classList.add('active');
       document.getElementById('view-capitaine').classList.add('active');
-      if(pinValidated) updateCapitaineView();
+      if (pinValidated) listenCap(document.getElementById('match-cap').value);
     }
   };
 
   window.updateInfoJoueur = function() {
-    const m = matches[document.getElementById('match-joueur').value];
+    const idx = document.getElementById('match-joueur').value;
+    const m = matches[idx];
     document.getElementById('j-titre').textContent = m.label;
     document.getElementById('j-heure').textContent = '⏰ ' + m.heure;
     document.getElementById('j-surface').textContent = '📍 ' + m.surface;
@@ -198,6 +319,7 @@
     ['btn-present','btn-absent','btn-remplace'].forEach(id => document.getElementById(id).className = 'vote-btn');
     document.getElementById('success-zone').innerHTML = '';
     document.getElementById('confirm-btn').disabled = true;
+    listenJoueur(idx);
   };
 
   window.selectVote = function(choix) {
@@ -209,64 +331,41 @@
   };
 
   window.checkReady = function() {
-    const nom = document.getElementById('player-name').value.trim();
+    const { nom } = getPlayerInfo();
     document.getElementById('confirm-btn').disabled = !(nom && selectedVote);
   };
 
   window.confirmerVote = async function() {
     const idx = document.getElementById('match-joueur').value;
-    const nom = document.getElementById('player-name').value.trim();
-    if(!nom || !selectedVote) return;
+    const { nom } = getPlayerInfo();
+    if (!nom || !selectedVote) return;
     const safeName = nom.replace(/[.#$\[\]]/g, '_');
     await set(ref(db, `votes/match_${idx}/${safeName}`), selectedVote);
     const labels = {present:'Présent(e)', absent:'Absent(e)', remplace:'Dispo pour remplacer'};
-    document.getElementById('success-zone').innerHTML = `<div class="success-box">✅ Merci ${nom} ! Réponse enregistrée : <strong>${labels[selectedVote]}</strong></div>`;
+    document.getElementById('success-zone').innerHTML = `<div class="success-box">✅ Merci ${nom.split(' ')[0]} ! Réponse enregistrée : <strong>${labels[selectedVote]}</strong></div>`;
     document.getElementById('confirm-btn').disabled = true;
   };
 
-  window.checkPin = function() {};
-
   window.validerPin = function() {
     const pin = document.getElementById('cap-pin').value;
-    if(pin === CAP_PIN) {
+    if (pin === CAP_PIN) {
       pinValidated = true;
       document.getElementById('cap-content').style.display = 'block';
       document.getElementById('pin-error').innerHTML = '';
-      updateCapitaineView();
+      listenCap(document.getElementById('match-cap').value);
     } else {
       document.getElementById('pin-error').innerHTML = '<div class="error-box">Code incorrect. Réessaie.</div>';
     }
   };
 
   window.updateCapitaineView = function() {
-    if(!pinValidated) return;
+    if (!pinValidated) return;
     const idx = document.getElementById('match-cap').value;
     const m = matches[idx];
     document.getElementById('c-titre').textContent = m.label;
     document.getElementById('c-heure').textContent = '⏰ ' + m.heure;
     document.getElementById('c-surface').textContent = '📍 ' + m.surface;
-
-    onValue(ref(db, `votes/match_${idx}`), (snapshot) => {
-      const data = snapshot.val() || {};
-      const noms = Object.keys(data);
-      let p=0, a=0, r=0;
-      noms.forEach(n => { if(data[n]==='present') p++; else if(data[n]==='absent') a++; else r++; });
-      document.getElementById('cnt-p').textContent = p;
-      document.getElementById('cnt-a').textContent = a;
-      document.getElementById('cnt-r').textContent = r;
-      const labels = {present:'Présent(e)', absent:'Absent(e)', remplace:'Remplaçant(e)'};
-      const badgeClass = {present:'badge-present', absent:'badge-absent', remplace:'badge-remplace'};
-      const list = document.getElementById('voters-list');
-      if(noms.length === 0) {
-        list.innerHTML = '<div class="empty">Aucune réponse pour ce match</div>';
-      } else {
-        list.innerHTML = noms.map(n => `
-          <div class="voter-row">
-            <span>${n}</span>
-            <span class="badge ${badgeClass[data[n]]}">${labels[data[n]]}</span>
-          </div>`).join('');
-      }
-    });
+    listenCap(idx);
   };
 
   window.copierMessage = function() {
@@ -279,6 +378,8 @@
       setTimeout(() => btn.textContent = '📋 Copier le message Messenger', 2000);
     });
   };
+
+  listenJoueur(0);
 </script>
 </body>
 </html>
