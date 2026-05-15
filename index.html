@@ -161,7 +161,7 @@
   measurementId: "G-QEWC87VQ2Q"
 };
 
-  const CAP_PIN = "1234"; // 🔒 Change ce code à 4 chiffres
+  const CAP_PIN = "2260"; // 🔒 Change ce code à 4 chiffres
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
@@ -272,7 +272,7 @@
   window.copierMessage = function() {
     const idx = document.getElementById('match-cap').value;
     const m = matches[idx];
-    const msg = `🏒 Disponibilité — ${m.heure}\n${m.label} · ${m.surface}\n\nClique sur le lien et indique ta disponibilité en 5 secondes 👇\nhttps://TON-USERNAME.github.io/vieilles-souches/`;
+    const msg = `🏒 Disponibilité — ${m.heure}\n${m.label} · ${m.surface}\n\nClique sur le lien et indique ta disponibilité en 5 secondes 👇\nhttps://martinsp85.github.io/Vieilles-Souches/`;
     navigator.clipboard.writeText(msg).then(() => {
       const btn = document.querySelector('.copy-btn');
       btn.textContent = '✅ Copié !';
