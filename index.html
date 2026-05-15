@@ -75,12 +75,17 @@
   .delete-vote-btn:hover { background: #ffebee; color: #c62828; }
   .lineup-position { margin-bottom: 1.25rem; }
   .lineup-position-title { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-  .lineup-player { background: #f0f4ff; border-radius: 10px; padding: 11px 14px; margin-bottom: 6px; font-size: 14px; font-weight: 500; color: #1a237e; }
-  .lineup-slot-empty { background: #f7f7f7; border-radius: 10px; padding: 11px 14px; margin-bottom: 6px; font-size: 14px; color: #bbb; font-style: italic; }
+  .lineup-player { background: #f0f4ff; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 500; color: #1a237e; }
+  .lineup-slot-empty { background: #f7f7f7; border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #bbb; font-style: italic; }
   .lineup-not-published { text-align: center; padding: 3rem 1rem; color: #bbb; }
+  .lineup-line { margin-bottom: 10px; }
+  .lineup-line-header { font-size: 11px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+  .lineup-line-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .align-row { margin-bottom: 1.25rem; }
   .align-label { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
-  .align-input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 14px; color: #111; outline: none; margin-bottom: 8px; background: #fff; }
+  .align-line-label { font-size: 11px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; display: block; }
+  .align-line-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .align-input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 14px; color: #111; outline: none; background: #fff; }
   .align-input:focus { border-color: #888; }
   .btn-danger { padding: 12px; border-radius: 12px; border: 1.5px solid #ffcdd2; background: #ffebee; font-size: 14px; font-weight: 500; cursor: pointer; color: #c62828; transition: all 0.15s; }
   .btn-danger:hover { background: #ffcdd2; }
@@ -242,13 +247,29 @@
         </div>
         <div class="align-row">
           <span class="align-label">🛡️ Défenseurs</span>
-          <input class="align-input" id="align-def1" list="list-joueurs-cap" placeholder="Défenseur 1..." autocomplete="off" />
-          <input class="align-input" id="align-def2" list="list-joueurs-cap" placeholder="Défenseur 2..." autocomplete="off" />
+          <span class="align-line-label">Ligne 1</span>
+          <div class="align-line-grid">
+            <input class="align-input" id="align-def1" list="list-joueurs-cap" placeholder="Défenseur 1..." autocomplete="off" />
+            <input class="align-input" id="align-def2" list="list-joueurs-cap" placeholder="Défenseur 2..." autocomplete="off" />
+          </div>
+          <span class="align-line-label">Ligne 2</span>
+          <div class="align-line-grid">
+            <input class="align-input" id="align-def3" list="list-joueurs-cap" placeholder="Défenseur 3..." autocomplete="off" />
+            <input class="align-input" id="align-def4" list="list-joueurs-cap" placeholder="Défenseur 4..." autocomplete="off" />
+          </div>
         </div>
         <div class="align-row">
           <span class="align-label">⚡ Attaquants</span>
-          <input class="align-input" id="align-att1" list="list-joueurs-cap" placeholder="Attaquant 1..." autocomplete="off" />
-          <input class="align-input" id="align-att2" list="list-joueurs-cap" placeholder="Attaquant 2..." autocomplete="off" />
+          <span class="align-line-label">Ligne 1</span>
+          <div class="align-line-grid">
+            <input class="align-input" id="align-att1" list="list-joueurs-cap" placeholder="Attaquant 1..." autocomplete="off" />
+            <input class="align-input" id="align-att2" list="list-joueurs-cap" placeholder="Attaquant 2..." autocomplete="off" />
+          </div>
+          <span class="align-line-label">Ligne 2</span>
+          <div class="align-line-grid">
+            <input class="align-input" id="align-att3" list="list-joueurs-cap" placeholder="Attaquant 3..." autocomplete="off" />
+            <input class="align-input" id="align-att4" list="list-joueurs-cap" placeholder="Attaquant 4..." autocomplete="off" />
+          </div>
         </div>
         <datalist id="list-joueurs-cap"></datalist>
         <div style="display:flex;gap:8px;margin-top:4px">
@@ -477,7 +498,12 @@
     }
     const slot = (name) => name
       ? `<div class="lineup-player">${name}</div>`
-      : `<div class="lineup-slot-empty">Non assigné</div>`;
+      : `<div class="lineup-slot-empty">—</div>`;
+    const line = (label, n1, n2) => `
+      <div class="lineup-line">
+        <div class="lineup-line-header">${label}</div>
+        <div class="lineup-line-grid">${slot(n1)}${slot(n2)}</div>
+      </div>`;
     el.innerHTML = `
       <div class="lineup-position">
         <div class="lineup-position-title">🥅 Gardien</div>
@@ -485,13 +511,13 @@
       </div>
       <div class="lineup-position">
         <div class="lineup-position-title">🛡️ Défenseurs</div>
-        ${slot(data.defenseurs?.[0])}
-        ${slot(data.defenseurs?.[1])}
+        ${line('Ligne 1', data.defenseurs?.[0], data.defenseurs?.[1])}
+        ${line('Ligne 2', data.defenseurs?.[2], data.defenseurs?.[3])}
       </div>
       <div class="lineup-position">
         <div class="lineup-position-title">⚡ Attaquants</div>
-        ${slot(data.attaquants?.[0])}
-        ${slot(data.attaquants?.[1])}
+        ${line('Ligne 1', data.attaquants?.[0], data.attaquants?.[1])}
+        ${line('Ligne 2', data.attaquants?.[2], data.attaquants?.[3])}
       </div>`;
   }
 
@@ -509,8 +535,12 @@
       document.getElementById('align-gardien').value = data.gardien || '';
       document.getElementById('align-def1').value = data.defenseurs?.[0] || '';
       document.getElementById('align-def2').value = data.defenseurs?.[1] || '';
+      document.getElementById('align-def3').value = data.defenseurs?.[2] || '';
+      document.getElementById('align-def4').value = data.defenseurs?.[3] || '';
       document.getElementById('align-att1').value = data.attaquants?.[0] || '';
       document.getElementById('align-att2').value = data.attaquants?.[1] || '';
+      document.getElementById('align-att3').value = data.attaquants?.[2] || '';
+      document.getElementById('align-att4').value = data.attaquants?.[3] || '';
     });
   }
 
@@ -529,11 +559,15 @@
       gardien: document.getElementById('align-gardien').value.trim(),
       defenseurs: [
         document.getElementById('align-def1').value.trim(),
-        document.getElementById('align-def2').value.trim()
+        document.getElementById('align-def2').value.trim(),
+        document.getElementById('align-def3').value.trim(),
+        document.getElementById('align-def4').value.trim()
       ],
       attaquants: [
         document.getElementById('align-att1').value.trim(),
-        document.getElementById('align-att2').value.trim()
+        document.getElementById('align-att2').value.trim(),
+        document.getElementById('align-att3').value.trim(),
+        document.getElementById('align-att4').value.trim()
       ],
       publie: true
     };
