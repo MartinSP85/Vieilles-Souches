@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sondage — Les Vieilles Souches</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; min-height: 100vh; padding: 1rem; }
+  .container { max-width: 480px; margin: 0 auto; }
+  .header { text-align: center; padding: 1.5rem 0 1rem; }
+  .header h1 { font-size: 20px; font-weight: 600; color: #111; }
+  .header p { font-size: 13px; color: #666; margin-top: 4px; }
+  .tab-bar { display: flex; background: #e8e8e8; border-radius: 10px; padding: 3px; margin-bottom: 1.25rem; }
+  .tab { flex: 1; padding: 8px; border: none; background: transparent; border-radius: 8px; font-size: 14px; font-weight: 500; color: #666; cursor: pointer; transition: all 0.15s; }
+  .tab.active { background: #fff; color: #111; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .view { display: none; }
+  .view.active { display: block; }
+  .card { background: #fff; border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 14px; background: #fff; color: #111; margin-bottom: 1rem; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+  .match-info { background: #f7f7f7; border-radius: 10px; padding: 12px 14px; margin-bottom: 1.25rem; }
+  .match-info .titre { font-size: 15px; font-weight: 600; color: #111; margin-bottom: 4px; }
+  .match-info .detail { font-size: 13px; color: #555; margin-top: 3px; }
+  input[type="text"] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 15px; color: #111; outline: none; margin-bottom: 1rem; }
+  input[type="text"]:focus { border-color: #888; }
+  .vote-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .vote-btn { padding: 1rem 0.5rem; border-radius: 12px; border: 1.5px solid #e0e0e0; background: #fff; cursor: pointer; font-size: 13px; font-weight: 500; color: #333; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: all 0.15s; }
+  .vote-btn svg { width: 28px; height: 28px; }
+  .vote-btn:active { transform: scale(0.97); }
+  .vote-btn.sel-present { background: #e8f5e9; border-color: #388e3c; color: #1b5e20; }
+  .vote-btn.sel-absent { background: #ffebee; border-color: #c62828; color: #7f0000; }
+  .vote-btn.sel-remplace { background: #e3f2fd; border-color: #1565c0; color: #0d47a1; }
+  .confirm-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; background: #111; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .confirm-btn:hover { background: #333; }
+  .confirm-btn:disabled { background: #ccc; cursor: not-allowed; }
+  .success-box { background: #e8f5e9; border-radius: 12px; padding: 1rem; text-align: center; color: #1b5e20; font-size: 14px; font-weight: 500; margin-top: 1rem; }
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .stat { background: #f7f7f7; border-radius: 12px; padding: 1rem; text-align: center; }
+  .stat-num { font-size: 32px; font-weight: 700; }
+  .stat-num.green { color: #388e3c; }
+  .stat-num.red { color: #c62828; }
+  .stat-num.blue { color: #1565c0; }
+  .stat-label { font-size: 12px; color: #666; margin-top: 4px; }
+  .section-title { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .voters-list { background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #eee; }
+  .voter-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+  .voter-row:last-child { border-bottom: none; }
+  .badge { font-size: 12px; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+  .badge-present { background: #e8f5e9; color: #1b5e20; }
+  .badge-absent { background: #ffebee; color: #7f0000; }
+  .badge-remplace { background: #e3f2fd; color: #0d47a1; }
+  .empty { text-align: center; padding: 2rem; color: #aaa; font-size: 14px; }
+  .copy-btn { width: 100%; margin-top: 1rem; padding: 12px; border-radius: 12px; border: 1.5px solid #ddd; background: #fff; font-size: 14px; font-weight: 500; cursor: pointer; color: #333; }
+  .copy-btn:hover { background: #f5f5f5; }
+  .loading { text-align: center; padding: 2rem; color: #aaa; font-size: 14px; }
+  .pin-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .pin-row input { flex: 1; }
+  .pin-hint { font-size: 12px; color: #888; margin-top: -10px; margin-bottom: 1rem; }
+  .error-box { background: #ffebee; border-radius: 10px; padding: 10px 14px; color: #7f0000; font-size: 13px; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🏒 Les Vieilles Souches</h1>
+    <p>Sondage de disponibilité</p>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('joueur')">Joueur</button>
+    <button class="tab" onclick="switchTab('capitaine')">Capitaine</button>
+  </div>
+
+  <!-- VUE JOUEUR -->
+  <div class="view active" id="view-joueur">
+    <div class="card">
+      <select id="match-joueur" onchange="updateInfoJoueur()">
+        <option value="0">Lundi 18 mai — @ Monkeys Family</option>
+        <option value="1">Lundi 25 mai — @ Veggies</option>
+        <option value="2">Lundi 1 juin — vs Wolfpack</option>
+        <option value="3">Lundi 8 juin — @ Pucking Legends</option>
+      </select>
+      <div class="match-info">
+        <div class="titre" id="j-titre">@ Monkeys Family</div>
+        <div class="detail" id="j-heure">⏰ Lundi 18 mai 2026 à 20h15</div>
+        <div class="detail" id="j-surface">📍 Surface (2) - LDK</div>
+      </div>
+      <input type="text" id="player-name" placeholder="Ton prénom" oninput="checkReady()" />
+      <div class="vote-grid">
+        <button class="vote-btn" id="btn-present" onclick="selectVote('present')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Présent(e)
+        </button>
+        <button class="vote-btn" id="btn-absent" onclick="selectVote('absent')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Absent(e)
+        </button>
+        <button class="vote-btn" id="btn-remplace" onclick="selectVote('remplace')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+          Dispo pour remplacer
+        </button>
+      </div>
+      <button class="confirm-btn" id="confirm-btn" onclick="confirmerVote()" disabled>Confirmer ma réponse</button>
+      <div id="success-zone"></div>
+    </div>
+  </div>
+
+  <!-- VUE CAPITAINE -->
+  <div class="view" id="view-capitaine">
+    <div class="card">
+      <div class="section-title">Code capitaine</div>
+      <div class="pin-row">
+        <input type="password" id="cap-pin" placeholder="Entrer le code (4 chiffres)" maxlength="4" oninput="checkPin()" />
+        <button class="confirm-btn" style="width:auto;padding:10px 16px;font-size:14px" onclick="validerPin()">OK</button>
+      </div>
+      <div class="pin-hint">Le code est défini dans votre fichier de configuration.</div>
+      <div id="pin-error"></div>
+    </div>
+    <div id="cap-content" style="display:none">
+      <div class="card">
+        <select id="match-cap" onchange="updateCapitaineView()">
+          <option value="0">Lundi 18 mai — @ Monkeys Family</option>
+          <option value="1">Lundi 25 mai — @ Veggies</option>
+          <option value="2">Lundi 1 juin — vs Wolfpack</option>
+          <option value="3">Lundi 8 juin — @ Pucking Legends</option>
+        </select>
+        <div class="match-info">
+          <div class="titre" id="c-titre">@ Monkeys Family</div>
+          <div class="detail" id="c-heure">⏰ Lundi 18 mai 2026 à 20h15</div>
+          <div class="detail" id="c-surface">📍 Surface (2) - LDK</div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat"><div class="stat-num green" id="cnt-p">0</div><div class="stat-label">Présent(e)s</div></div>
+          <div class="stat"><div class="stat-num red" id="cnt-a">0</div><div class="stat-label">Absent(e)s</div></div>
+          <div class="stat"><div class="stat-num blue" id="cnt-r">0</div><div class="stat-label">Remplaçant(e)s</div></div>
+        </div>
+        <div class="section-title">Réponses reçues</div>
+        <div class="voters-list" id="voters-list">
+          <div class="loading">Chargement...</div>
+        </div>
+        <button class="copy-btn" onclick="copierMessage()">📋 Copier le message Messenger</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+  // ⚙️ REMPLACE CES VALEURS PAR TES INFOS FIREBASE
+  const firebaseConfig = {
+    apiKey: "REMPLACE_PAR_TON_API_KEY",
+    authDomain: "REMPLACE_PAR_TON_AUTH_DOMAIN",
+    databaseURL: "REMPLACE_PAR_TON_DATABASE_URL",
+    projectId: "REMPLACE_PAR_TON_PROJECT_ID",
+    storageBucket: "REMPLACE_PAR_TON_STORAGE_BUCKET",
+    messagingSenderId: "REMPLACE_PAR_TON_MESSAGING_SENDER_ID",
+    appId: "REMPLACE_PAR_TON_APP_ID"
+  };
+
+  const CAP_PIN = "1234"; // 🔒 Change ce code à 4 chiffres
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  const matches = [
+    {label:"@ Monkeys Family", heure:"Lundi 18 mai 2026 à 20h15", surface:"Surface (2) - LDK"},
+    {label:"@ Veggies", heure:"Lundi 25 mai 2026 à 18h35", surface:"Surface (2) - LDK"},
+    {label:"vs Wolfpack", heure:"Lundi 1 juin 2026 à 17h45", surface:"Surface (1) - Knapper"},
+    {label:"@ Pucking Legends", heure:"Lundi 8 juin 2026 à 17h45", surface:"Surface (1) - Knapper"},
+  ];
+
+  let selectedVote = null;
+  let pinValidated = false;
+
+  window.switchTab = function(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    if(tab === 'joueur') {
+      document.querySelectorAll('.tab')[0].classList.add('active');
+      document.getElementById('view-joueur').classList.add('active');
+    } else {
+      document.querySelectorAll('.tab')[1].classList.add('active');
+      document.getElementById('view-capitaine').classList.add('active');
+      if(pinValidated) updateCapitaineView();
+    }
+  };
+
+  window.updateInfoJoueur = function() {
+    const m = matches[document.getElementById('match-joueur').value];
+    document.getElementById('j-titre').textContent = m.label;
+    document.getElementById('j-heure').textContent = '⏰ ' + m.heure;
+    document.getElementById('j-surface').textContent = '📍 ' + m.surface;
+    selectedVote = null;
+    ['btn-present','btn-absent','btn-remplace'].forEach(id => document.getElementById(id).className = 'vote-btn');
+    document.getElementById('success-zone').innerHTML = '';
+    document.getElementById('confirm-btn').disabled = true;
+  };
+
+  window.selectVote = function(choix) {
+    selectedVote = choix;
+    document.getElementById('btn-present').className = 'vote-btn' + (choix==='present' ? ' sel-present' : '');
+    document.getElementById('btn-absent').className = 'vote-btn' + (choix==='absent' ? ' sel-absent' : '');
+    document.getElementById('btn-remplace').className = 'vote-btn' + (choix==='remplace' ? ' sel-remplace' : '');
+    checkReady();
+  };
+
+  window.checkReady = function() {
+    const nom = document.getElementById('player-name').value.trim();
+    document.getElementById('confirm-btn').disabled = !(nom && selectedVote);
+  };
+
+  window.confirmerVote = async function() {
+    const idx = document.getElementById('match-joueur').value;
+    const nom = document.getElementById('player-name').value.trim();
+    if(!nom || !selectedVote) return;
+    const safeName = nom.replace(/[.#$\[\]]/g, '_');
+    await set(ref(db, `votes/match_${idx}/${safeName}`), selectedVote);
+    const labels = {present:'Présent(e)', absent:'Absent(e)', remplace:'Dispo pour remplacer'};
+    document.getElementById('success-zone').innerHTML = `<div class="success-box">✅ Merci ${nom} ! Réponse enregistrée : <strong>${labels[selectedVote]}</strong></div>`;
+    document.getElementById('confirm-btn').disabled = true;
+  };
+
+  window.checkPin = function() {};
+
+  window.validerPin = function() {
+    const pin = document.getElementById('cap-pin').value;
+    if(pin === CAP_PIN) {
+      pinValidated = true;
+      document.getElementById('cap-content').style.display = 'block';
+      document.getElementById('pin-error').innerHTML = '';
+      updateCapitaineView();
+    } else {
+      document.getElementById('pin-error').innerHTML = '<div class="error-box">Code incorrect. Réessaie.</div>';
+    }
+  };
+
+  window.updateCapitaineView = function() {
+    if(!pinValidated) return;
+    const idx = document.getElementById('match-cap').value;
+    const m = matches[idx];
+    document.getElementById('c-titre').textContent = m.label;
+    document.getElementById('c-heure').textContent = '⏰ ' + m.heure;
+    document.getElementById('c-surface').textContent = '📍 ' + m.surface;
+
+    onValue(ref(db, `votes/match_${idx}`), (snapshot) => {
+      const data = snapshot.val() || {};
+      const noms = Object.keys(data);
+      let p=0, a=0, r=0;
+      noms.forEach(n => { if(data[n]==='present') p++; else if(data[n]==='absent') a++; else r++; });
+      document.getElementById('cnt-p').textContent = p;
+      document.getElementById('cnt-a').textContent = a;
+      document.getElementById('cnt-r').textContent = r;
+      const labels = {present:'Présent(e)', absent:'Absent(e)', remplace:'Remplaçant(e)'};
+      const badgeClass = {present:'badge-present', absent:'badge-absent', remplace:'badge-remplace'};
+      const list = document.getElementById('voters-list');
+      if(noms.length === 0) {
+        list.innerHTML = '<div class="empty">Aucune réponse pour ce match</div>';
+      } else {
+        list.innerHTML = noms.map(n => `
+          <div class="voter-row">
+            <span>${n}</span>
+            <span class="badge ${badgeClass[data[n]]}">${labels[data[n]]}</span>
+          </div>`).join('');
+      }
+    });
+  };
+
+  window.copierMessage = function() {
+    const idx = document.getElementById('match-cap').value;
+    const m = matches[idx];
+    const msg = `🏒 Disponibilité — ${m.heure}\n${m.label} · ${m.surface}\n\nClique sur le lien et indique ta disponibilité en 5 secondes 👇\nhttps://TON-USERNAME.github.io/vieilles-souches/`;
+    navigator.clipboard.writeText(msg).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = '✅ Copié !';
+      setTimeout(() => btn.textContent = '📋 Copier le message Messenger', 2000);
+    });
+  };
+</script>
+</body>
+</html>
