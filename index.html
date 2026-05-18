@@ -326,6 +326,7 @@
           <button class="confirm-btn" id="btn-publier-align" style="flex:2" onclick="sauvegarderAlignement()">Publier l'alignement</button>
           <button class="btn-danger" style="flex:1" onclick="effacerAlignement()">Effacer</button>
         </div>
+        <button class="copy-btn" id="btn-copier-alignement" onclick="copierAlignement()" style="margin-top:0.75rem">📋 Copier l'alignement Messenger</button>
         </div>
       </div>
     </div>
@@ -550,6 +551,32 @@
     document.getElementById('c-surface').textContent = '📍 ' + m.surface;
     listenCap(idx);
     listenCapAlign(idx);
+  };
+
+  window.copierAlignement = function() {
+    const idx = document.getElementById('match-cap').value;
+    const m = matches[idx];
+    const v = id => document.getElementById(id)?.value.trim() || '—';
+    const msg = [
+      `🏒 Alignement — ${m.heure}`,
+      `${m.label} · ${m.surface}`,
+      ``,
+      `🥅 Gardien`,
+      `${v('align-gardien')}`,
+      ``,
+      `Ligne 1`,
+      `🛡️  ${v('align-def1')}  |  ${v('align-def2')}`,
+      `⚡  ${v('align-att1')}  |  ${v('align-att2')}`,
+      ``,
+      `Ligne 2`,
+      `🛡️  ${v('align-def3')}  |  ${v('align-def4')}`,
+      `⚡  ${v('align-att3')}  |  ${v('align-att4')}`,
+    ].join('\n');
+    navigator.clipboard.writeText(msg).then(() => {
+      const btn = document.getElementById('btn-copier-alignement');
+      btn.textContent = '✅ Copié !';
+      setTimeout(() => { btn.textContent = '📋 Copier l\'alignement Messenger'; }, 2000);
+    });
   };
 
   window.copierMessage = function() {
