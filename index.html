@@ -93,9 +93,11 @@
   .align-input:focus { border-color: #888; }
   .btn-danger { padding: 12px; border-radius: 12px; border: 1.5px solid #ffcdd2; background: #ffebee; font-size: 14px; font-weight: 500; cursor: pointer; color: #c62828; transition: all 0.15s; }
   .btn-danger:hover { background: #ffcdd2; }
-  .config-player-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #f0f0f0; }
+  .config-player-row { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid #f0f0f0; }
   .config-player-row:last-child { border-bottom: none; }
-  .config-player-info { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .config-player-info { display: flex; align-items: center; gap: 6px; font-size: 14px; flex: 0 0 auto; }
+  .surnom-input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 8px; border: 1px solid #ddd; font-size: 13px; color: #111; outline: none; background: #fff; }
+  .surnom-input:focus { border-color: #888; }
   .config-player-num { background: #111; color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; min-width: 28px; text-align: center; }
   .numero-input { background: #111; color: #fff; border: none; border-radius: 6px; padding: 3px 6px; font-size: 12px; font-weight: 700; width: 44px; text-align: center; outline: none; cursor: pointer; }
   .numero-input:focus { background: #333; }
@@ -371,6 +373,8 @@
   let cotesListener = null;
   let numerosData = {};
   let numerosListener = null;
+  let surnomsData = {};
+  let surnomsListener = null;
   let currentVotesData = {};
   let deletedJoueurs = {};
   let deletedListener = null;
@@ -536,6 +540,7 @@
       listenCapAlign(capIdx);
       listenCotes();
       listenNumeros();
+      listenSurnoms();
       initAlignInputs();
     } else {
       document.getElementById('pin-error').innerHTML = '<div class="error-box">Code incorrect. Réessaie.</div>';
@@ -556,7 +561,8 @@
   window.copierAlignement = function() {
     const idx = document.getElementById('match-cap').value;
     const m = matches[idx];
-    const v = id => document.getElementById(id)?.value.trim() || '—';
+    const raw = id => document.getElementById(id)?.value.trim() || '';
+    const v = id => { const n = raw(id); if (!n) return '—'; return surnomsData[toSafe(n)] || prenomOf(n); };
     const msg = [
       `🏒 Alignement — ${m.heure}`,
       `${m.label} · ${m.surface}`,
@@ -591,6 +597,7 @@
   };
 
   function toSafe(nom) { return nom.replace(/[.#$\[\]]/g, '_'); }
+  function prenomOf(nom) { const p = nom.split(' '); return p.length === 1 ? nom : p.slice(0, -1).join(' '); }
 
   function getAllJoueurs() {
     const base = joueurs
@@ -651,6 +658,7 @@
     else await set(ref(db, `config/joueurs_deleted/${sn}`), true);
     await remove(ref(db, `config/cotes/${sn}`));
     await remove(ref(db, `config/numeros/${sn}`));
+    await remove(ref(db, `config/surnoms/${sn}`));
   };
 
   function listenDeleted() {
@@ -679,11 +687,25 @@
     });
   }
 
+  function listenSurnoms() {
+    if (surnomsListener) surnomsListener();
+    surnomsListener = onValue(ref(db, 'config/surnoms'), (snapshot) => {
+      surnomsData = snapshot.val() || {};
+      if (pinValidated) renderJoueursConfig();
+    });
+  }
+
   window.setNumero = async function(sn, value) {
     const v = value.trim();
     if (v) await set(ref(db, `config/numeros/${sn}`), v);
     else await remove(ref(db, `config/numeros/${sn}`));
     updatePlayerSelect();
+  };
+
+  window.setSurnom = async function(sn, value) {
+    const v = value.trim();
+    if (v) await set(ref(db, `config/surnoms/${sn}`), v);
+    else await remove(ref(db, `config/surnoms/${sn}`));
   };
 
   function renderJoueursConfig(cotes) {
@@ -723,12 +745,14 @@
       ? '<div class="empty">Aucun joueur trouvé</div>'
       : players.map(j => {
         const cur = cotesData[j.sn] || '';
+        const surnomVal = surnomsData[j.sn] || prenomOf(j.nom);
         return `<div class="config-player-row">
           <div class="config-player-info">
             <input class="numero-input" value="${j.numero}" maxlength="3" onchange="setNumero('${j.sn}', this.value)" title="Numéro" />
             <span>${j.nom}</span>
           </div>
-          <div style="display:flex;align-items:center;gap:6px">
+          <input class="surnom-input" value="${surnomVal}" placeholder="Surnom..." onchange="setSurnom('${j.sn}', this.value)" title="Surnom (utilisé dans l'alignement Messenger)" />
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
             <select class="cote-select" onchange="setCote('${j.sn}', this.value)">
               <option value="">—</option>
               ${COTES.map(c => `<option value="${c}" ${cur === c ? 'selected' : ''}>${c}</option>`).join('')}
