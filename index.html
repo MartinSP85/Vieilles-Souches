@@ -381,11 +381,20 @@
   let configSort = { field: 'nom', dir: 'asc' };
 
   const matches = [
-    {label:"@ Monkeys Family", heure:"Lundi 18 mai 2026 à 20h15", surface:"Surface (2) - LDK"},
-    {label:"@ Veggies", heure:"Lundi 25 mai 2026 à 18h35", surface:"Surface (2) - LDK"},
-    {label:"vs Wolfpack", heure:"Lundi 1 juin 2026 à 17h45", surface:"Surface (1) - Knapper"},
-    {label:"@ Pucking Legends", heure:"Lundi 8 juin 2026 à 17h45", surface:"Surface (1) - Knapper"},
+    {label:"@ Monkeys Family", heure:"Lundi 18 mai 2026 à 20h15", surface:"Surface (2) - LDK", date:'2026-05-18'},
+    {label:"@ Veggies", heure:"Lundi 25 mai 2026 à 18h35", surface:"Surface (2) - LDK", date:'2026-05-25'},
+    {label:"vs Wolfpack", heure:"Lundi 1 juin 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-06-01'},
+    {label:"@ Pucking Legends", heure:"Lundi 8 juin 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-06-08'},
   ];
+
+  function getNextMatchIdx() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 0; i < matches.length; i++) {
+      if (new Date(matches[i].date) >= today) return i;
+    }
+    return matches.length - 1;
+  }
 
   const badgeClass = {present:'badge-present', absent:'badge-absent', remplace:'badge-remplace'};
   const badgeLabel = {present:'Présent(e)', absent:'Absent(e)', remplace:'Remplaçant(e)'};
@@ -913,9 +922,24 @@
     await remove(ref(db, `alignement/match_${idx}`));
   };
 
+  const defaultIdx = getNextMatchIdx();
+  ['match-joueur', 'match-align', 'match-cap'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = String(defaultIdx);
+  });
+  const dm = matches[defaultIdx];
+  document.getElementById('j-titre').textContent = dm.label;
+  document.getElementById('j-heure').textContent = '⏰ ' + dm.heure;
+  document.getElementById('j-surface').textContent = '📍 ' + dm.surface;
+  document.getElementById('al-titre').textContent = dm.label;
+  document.getElementById('al-heure').textContent = '⏰ ' + dm.heure;
+  document.getElementById('al-surface').textContent = '📍 ' + dm.surface;
+  document.getElementById('c-titre').textContent = dm.label;
+  document.getElementById('c-heure').textContent = '⏰ ' + dm.heure;
+  document.getElementById('c-surface').textContent = '📍 ' + dm.surface;
   listenExtras();
   listenDeleted();
-  listenJoueur(0);
+  listenJoueur(defaultIdx);
 </script>
 </body>
 </html>
