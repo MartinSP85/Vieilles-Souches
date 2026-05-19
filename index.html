@@ -89,7 +89,7 @@
   .align-label { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
   .align-line-label { font-size: 11px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; display: block; }
   .align-line-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-  .align-input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 14px; color: #111; outline: none; background: #fff; }
+  .align-input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 14px; color: #111; outline: none; background-color: #fff; margin-bottom: 0; }
   .align-input:focus { border-color: #888; }
   .btn-danger { padding: 12px; border-radius: 12px; border: 1.5px solid #ffcdd2; background: #ffebee; font-size: 14px; font-weight: 500; cursor: pointer; color: #c62828; transition: all 0.15s; }
   .btn-danger:hover { background: #ffcdd2; }
@@ -298,35 +298,34 @@
           <div class="section-title">🏒 Alignement</div>
         <div class="align-row">
           <span class="align-label">🥅 Gardien</span>
-          <input class="align-input" id="align-gardien" list="list-joueurs-cap" placeholder="Nom du gardien..." autocomplete="off" />
+          <select class="align-input" id="align-gardien"></select>
         </div>
         <div class="align-row">
           <span class="align-label">Ligne 1</span>
           <span class="align-line-label">🛡️ Défenseurs</span>
           <div class="align-line-grid">
-            <input class="align-input" id="align-def1" list="list-joueurs-cap" placeholder="Défenseur 1..." autocomplete="off" />
-            <input class="align-input" id="align-def2" list="list-joueurs-cap" placeholder="Défenseur 2..." autocomplete="off" />
+            <select class="align-input" id="align-def1"></select>
+            <select class="align-input" id="align-def2"></select>
           </div>
           <span class="align-line-label">⚡ Attaquants</span>
           <div class="align-line-grid">
-            <input class="align-input" id="align-att1" list="list-joueurs-cap" placeholder="Attaquant 1..." autocomplete="off" />
-            <input class="align-input" id="align-att2" list="list-joueurs-cap" placeholder="Attaquant 2..." autocomplete="off" />
+            <select class="align-input" id="align-att1"></select>
+            <select class="align-input" id="align-att2"></select>
           </div>
         </div>
         <div class="align-row">
           <span class="align-label">Ligne 2</span>
           <span class="align-line-label">🛡️ Défenseurs</span>
           <div class="align-line-grid">
-            <input class="align-input" id="align-def3" list="list-joueurs-cap" placeholder="Défenseur 3..." autocomplete="off" />
-            <input class="align-input" id="align-def4" list="list-joueurs-cap" placeholder="Défenseur 4..." autocomplete="off" />
+            <select class="align-input" id="align-def3"></select>
+            <select class="align-input" id="align-def4"></select>
           </div>
           <span class="align-line-label">⚡ Attaquants</span>
           <div class="align-line-grid">
-            <input class="align-input" id="align-att3" list="list-joueurs-cap" placeholder="Attaquant 3..." autocomplete="off" />
-            <input class="align-input" id="align-att4" list="list-joueurs-cap" placeholder="Attaquant 4..." autocomplete="off" />
+            <select class="align-input" id="align-att3"></select>
+            <select class="align-input" id="align-att4"></select>
           </div>
         </div>
-        <datalist id="list-joueurs-cap"></datalist>
         <div id="align-total-box" class="points-total-box neutral">Total : 0 / 140 pts</div>
         <div style="display:flex;gap:8px;margin-top:4px">
           <button class="confirm-btn" id="btn-publier-align" style="flex:2" onclick="sauvegarderAlignement()">Publier l'alignement</button>
@@ -861,25 +860,34 @@
   }
 
   function initAlignInputs() {
-    document.querySelectorAll('.align-input').forEach(input => {
-      input.addEventListener('input', calculerTotal);
+    ALIGN_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', calculerTotal);
     });
   }
 
   const ALIGN_IDS = ['align-gardien','align-def1','align-def2','align-def3','align-def4',
                      'align-att1','align-att2','align-att3','align-att4'];
 
-  function updateDatalist(votesData) {
+  function updateDatalist(votesData, savedVals) {
     if (votesData !== undefined) currentVotesData = votesData;
-    const used = new Set(ALIGN_IDS.map(id => {
-      const el = document.getElementById(id);
-      return el ? el.value.trim() : '';
-    }).filter(v => v));
     const eligible = new Set(Object.keys(currentVotesData).filter(n => currentVotesData[n] === 'present' || currentVotesData[n] === 'remplace'));
     const allNoms = getAllJoueurs().map(j => j.nom);
-    const sorted = allNoms.filter(n => eligible.has(toSafe(n)) && !used.has(n));
-    const datalist = document.getElementById('list-joueurs-cap');
-    if (datalist) datalist.innerHTML = sorted.map(n => `<option value="${n}">`).join('');
+    const eligibleNoms = allNoms.filter(n => eligible.has(toSafe(n)));
+    const currentVals = {};
+    ALIGN_IDS.forEach(id => {
+      currentVals[id] = (savedVals && savedVals[id] !== undefined) ? savedVals[id] : (document.getElementById(id)?.value || '');
+    });
+    ALIGN_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const myVal = currentVals[id];
+      const usedElsewhere = new Set(ALIGN_IDS.filter(oid => oid !== id).map(oid => currentVals[oid]).filter(v => v));
+      const available = eligibleNoms.filter(n => !usedElsewhere.has(n));
+      el.innerHTML = '<option value="">— Choisir —</option>' +
+        available.map(n => `<option value="${n}">${n}</option>`).join('');
+      if (myVal && available.includes(myVal)) el.value = myVal;
+    });
   }
 
   function renderAlignementDisplay(data) {
@@ -923,17 +931,19 @@
     if (capAlignListener) capAlignListener();
     capAlignListener = onValue(ref(db, `alignement/match_${idx}`), (snapshot) => {
       const data = snapshot.val() || {};
-      document.getElementById('align-gardien').value = data.gardien || '';
-      document.getElementById('align-def1').value = data.defenseurs?.[0] || '';
-      document.getElementById('align-def2').value = data.defenseurs?.[1] || '';
-      document.getElementById('align-def3').value = data.defenseurs?.[2] || '';
-      document.getElementById('align-def4').value = data.defenseurs?.[3] || '';
-      document.getElementById('align-att1').value = data.attaquants?.[0] || '';
-      document.getElementById('align-att2').value = data.attaquants?.[1] || '';
-      document.getElementById('align-att3').value = data.attaquants?.[2] || '';
-      document.getElementById('align-att4').value = data.attaquants?.[3] || '';
+      const savedVals = {
+        'align-gardien': data.gardien || '',
+        'align-def1': data.defenseurs?.[0] || '',
+        'align-def2': data.defenseurs?.[1] || '',
+        'align-def3': data.defenseurs?.[2] || '',
+        'align-def4': data.defenseurs?.[3] || '',
+        'align-att1': data.attaquants?.[0] || '',
+        'align-att2': data.attaquants?.[1] || '',
+        'align-att3': data.attaquants?.[2] || '',
+        'align-att4': data.attaquants?.[3] || '',
+      };
+      updateDatalist(undefined, savedVals);
       calculerTotal();
-      updateDatalist();
     });
   }
 
