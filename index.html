@@ -631,9 +631,7 @@
         document.getElementById('auth-error').innerHTML = '<div class="error-box">Accès non autorisé.</div>';
       }
     } catch(e) {
-      if (e.code !== 'auth/popup-closed-by-user') {
-        document.getElementById('auth-error').innerHTML = '<div class="error-box">Erreur de connexion. Réessaie.</div>';
-      }
+      document.getElementById('auth-error').textContent = e.code + ' : ' + e.message;
     }
   };
 
