@@ -61,9 +61,6 @@
   .empty { text-align: center; padding: 2rem; color: #aaa; font-size: 14px; }
   .copy-btn { width: 100%; margin-top: 1rem; padding: 12px; border-radius: 12px; border: 1.5px solid #ddd; background: #fff; font-size: 14px; font-weight: 500; cursor: pointer; color: #333; }
   .copy-btn:hover { background: #f5f5f5; }
-  .pin-row { display: flex; gap: 8px; margin-bottom: 1rem; }
-  .pin-row input { flex: 1; }
-  .pin-hint { font-size: 12px; color: #888; margin-top: -10px; margin-bottom: 1rem; }
   .error-box { background: #ffebee; border-radius: 10px; padding: 10px 14px; color: #7f0000; font-size: 13px; margin-bottom: 1rem; }
   .divider { height: 1px; background: #f0f0f0; margin: 1.25rem 0; }
   .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
@@ -118,6 +115,10 @@
     .wide-grid { flex-direction: row; align-items: start; }
     .wide-grid > * { flex: 1; min-width: 0; }
   }
+  .google-btn { width: 100%; padding: 12px 16px; border-radius: 12px; border: 1.5px solid #ddd; background: #fff; font-size: 15px; font-weight: 500; cursor: pointer; color: #333; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.15s; }
+  .google-btn:hover { background: #f5f5f5; }
+  .auth-user-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .auth-user-name { font-size: 14px; color: #555; }
 </style>
 </head>
 <body>
@@ -229,14 +230,21 @@
 
   <!-- VUE CAPITAINE -->
   <div class="view" id="view-capitaine">
-    <div class="card">
-      <div class="section-title">Code capitaine</div>
-      <div class="pin-row">
-        <input type="password" id="cap-pin" placeholder="Code à 4 chiffres" maxlength="4" />
-        <button class="confirm-btn" style="width:auto;padding:10px 16px;font-size:14px" onclick="validerPin()">OK</button>
+    <div class="card" id="auth-card">
+      <div class="section-title">Espace capitaine</div>
+      <div id="auth-signin-section">
+        <button class="google-btn" onclick="seConnecterGoogle()">
+          <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.013 17.64 11.705 17.64 9.2z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.909-2.259c-.806.54-1.837.86-3.047.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
+          Se connecter avec Google
+        </button>
+        <div id="auth-error" style="margin-top:10px"></div>
       </div>
-      <div class="pin-hint">Accès réservé au capitaine.</div>
-      <div id="pin-error"></div>
+      <div id="auth-user-section" style="display:none">
+        <div class="auth-user-row">
+          <span class="auth-user-name" id="auth-user-name"></span>
+          <button class="btn-danger" style="padding:8px 14px;font-size:13px" onclick="seDeconnecter()">Se déconnecter</button>
+        </div>
+      </div>
     </div>
 
     <div id="cap-content" style="display:none">
@@ -356,6 +364,7 @@
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
   import { getDatabase, ref, set, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
   // ⚙️ REMPLACE CES VALEURS PAR TES INFOS FIREBASE
   const firebaseConfig = {
@@ -368,10 +377,12 @@
     appId: "1:1019477657616:web:4a043cbb6c18f161f22295"
   };
 
-  const CAP_PIN = "2260"; // 🔒 Change ce code
+  const CAP_UID = 'RvAkqW5p2aMQPelrsdkXLfOmi653';
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+  const auth = getAuth(app);
+  const googleProvider = new GoogleAuthProvider();
 
   const joueurs = [
     { nom: 'Martin St-Pierre',       numero: '22' },
@@ -593,12 +604,13 @@
     document.getElementById('confirm-btn').disabled = true;
   };
 
-  window.validerPin = function() {
-    const pin = document.getElementById('cap-pin').value;
-    if (pin === CAP_PIN) {
+  function activerCapitaine(user) {
+    document.getElementById('auth-signin-section').style.display = 'none';
+    document.getElementById('auth-user-section').style.display = 'block';
+    document.getElementById('auth-user-name').textContent = user.displayName || user.email || 'Capitaine';
+    document.getElementById('cap-content').style.display = 'block';
+    if (!pinValidated) {
       pinValidated = true;
-      document.getElementById('cap-content').style.display = 'block';
-      document.getElementById('pin-error').innerHTML = '';
       const capIdx = document.getElementById('match-cap').value;
       listenCap(capIdx);
       listenCapAlign(capIdx);
@@ -607,9 +619,26 @@
       listenSurnoms();
       listenRemplacants();
       initAlignInputs();
-    } else {
-      document.getElementById('pin-error').innerHTML = '<div class="error-box">Code incorrect. Réessaie.</div>';
     }
+  }
+
+  window.seConnecterGoogle = async function() {
+    document.getElementById('auth-error').innerHTML = '';
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user.uid !== CAP_UID) {
+        await signOut(auth);
+        document.getElementById('auth-error').innerHTML = '<div class="error-box">Accès non autorisé.</div>';
+      }
+    } catch(e) {
+      if (e.code !== 'auth/popup-closed-by-user') {
+        document.getElementById('auth-error').innerHTML = '<div class="error-box">Erreur de connexion. Réessaie.</div>';
+      }
+    }
+  };
+
+  window.seDeconnecter = async function() {
+    await signOut(auth);
   };
 
   window.updateCapitaineView = function() {
@@ -1029,6 +1058,17 @@
   listenExtras();
   listenDeleted();
   listenJoueur(defaultIdx);
+
+  onAuthStateChanged(auth, (user) => {
+    if (user && user.uid === CAP_UID) {
+      activerCapitaine(user);
+    } else if (!user && pinValidated) {
+      pinValidated = false;
+      document.getElementById('auth-signin-section').style.display = 'block';
+      document.getElementById('auth-user-section').style.display = 'none';
+      document.getElementById('cap-content').style.display = 'none';
+    }
+  });
 </script>
 </body>
 </html>
