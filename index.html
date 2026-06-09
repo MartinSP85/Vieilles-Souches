@@ -1026,10 +1026,15 @@
       ],
       publie: true
     };
-    await set(ref(db, `alignement/match_${idx}`), alignement);
+    console.log('auth.currentUser avant écriture :', auth.currentUser);
     const btn = document.getElementById('btn-publier-align');
-    btn.textContent = '✅ Publié !';
-    setTimeout(() => { btn.textContent = 'Publier l\'alignement'; }, 2000);
+    try {
+      await set(ref(db, `alignement/match_${idx}`), alignement);
+      btn.textContent = '✅ Publié !';
+      setTimeout(() => { btn.textContent = 'Publier l\'alignement'; }, 2000);
+    } catch(e) {
+      btn.textContent = e.code + ' : ' + e.message;
+    }
   };
 
   window.effacerAlignement = async function() {
