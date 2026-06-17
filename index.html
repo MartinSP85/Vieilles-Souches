@@ -139,15 +139,7 @@
   <div class="view active" id="view-joueur">
     <div class="card">
       <select id="match-joueur" onchange="updateInfoJoueur()">
-        <option value="0">Lundi 18 mai — @ Monkeys Family</option>
-        <option value="1">Lundi 25 mai — @ Veggies</option>
-        <option value="2">Lundi 1 juin — vs Wolfpack</option>
-        <option value="3">Lundi 8 juin — vs Fringants</option>
-        <option value="4">Lundi 15 juin — @ Fringants</option>
-        <option value="5">Lundi 22 juin — vs Grandes Yeules</option>
-        <option value="6">Lundi 29 juin — @ Phœnix</option>
-        <option value="7">Lundi 29 juin — @ Pucking Legends</option>
-        <option value="8">Lundi 13 juillet — vs Veggies</option>
+        <option value="">Chargement…</option>
       </select>
       <div class="match-info">
         <div class="titre" id="j-titre">@ Monkeys Family</div>
@@ -204,15 +196,7 @@
   <div class="view" id="view-alignement">
     <div class="card">
       <select id="match-align" onchange="updateAlignementMatch()">
-        <option value="0">Lundi 18 mai — @ Monkeys Family</option>
-        <option value="1">Lundi 25 mai — @ Veggies</option>
-        <option value="2">Lundi 1 juin — vs Wolfpack</option>
-        <option value="3">Lundi 8 juin — vs Fringants</option>
-        <option value="4">Lundi 15 juin — @ Fringants</option>
-        <option value="5">Lundi 22 juin — vs Grandes Yeules</option>
-        <option value="6">Lundi 29 juin — @ Phœnix</option>
-        <option value="7">Lundi 29 juin — @ Pucking Legends</option>
-        <option value="8">Lundi 13 juillet — vs Veggies</option>
+        <option value="">Chargement…</option>
       </select>
       <div class="match-info">
         <div class="titre" id="al-titre">@ Monkeys Family</div>
@@ -250,15 +234,7 @@
     <div id="cap-content" style="display:none">
       <div class="card">
         <select id="match-cap" onchange="updateCapitaineView()">
-          <option value="0">Lundi 18 mai — @ Monkeys Family</option>
-          <option value="1">Lundi 25 mai — @ Veggies</option>
-          <option value="2">Lundi 1 juin — vs Wolfpack</option>
-          <option value="3">Lundi 8 juin — vs Fringants</option>
-          <option value="4">Lundi 15 juin — @ Fringants</option>
-          <option value="5">Lundi 22 juin — vs Grandes Yeules</option>
-          <option value="6">Lundi 29 juin — @ Phœnix</option>
-          <option value="7">Lundi 29 juin — @ Pucking Legends</option>
-          <option value="8">Lundi 13 juillet — vs Veggies</option>
+          <option value="">Chargement…</option>
         </select>
         <div class="match-info">
           <div class="titre" id="c-titre">@ Monkeys Family</div>
@@ -357,13 +333,26 @@
         <button class="copy-btn" id="btn-copier-alignement" onclick="copierAlignement()" style="margin-top:0.75rem">📋 Copier l'alignement Messenger</button>
         </div>
       </div>
+
+      <div class="card">
+        <div class="section-title">🗓️ Gestion des matchs</div>
+        <div id="matches-config-list" style="overflow-x:auto"></div>
+        <div class="divider"></div>
+        <div class="section-title" style="margin-bottom:8px">Ajouter un match</div>
+        <input class="align-input" id="new-match-adv" placeholder="Adversaire (ex : @ Veggies ou vs Wolfpack)" autocomplete="off" style="margin-bottom:8px" />
+        <input class="align-input" id="new-match-date" type="date" style="margin-bottom:8px" />
+        <input class="align-input" id="new-match-heure" placeholder="Heure (ex : 18h35)" autocomplete="off" style="margin-bottom:8px" />
+        <input class="align-input" id="new-match-surface" placeholder="Surface (ex : Surface (1) - Knapper)" autocomplete="off" style="margin-bottom:10px" />
+        <button class="confirm-btn" onclick="ajouterMatch()">+ Ajouter</button>
+        <div id="add-match-error" style="margin-top:8px"></div>
+      </div>
     </div>
   </div>
 </div>
 
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getDatabase, ref, set, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+  import { getDatabase, ref, set, remove, onValue, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
   // ⚙️ REMPLACE CES VALEURS PAR TES INFOS FIREBASE
@@ -384,18 +373,27 @@
   const auth = getAuth(app);
   const googleProvider = new GoogleAuthProvider();
 
-  const joueurs = [
-    { nom: 'Martin St-Pierre',       numero: '22' },
-    { nom: 'Ramon Sepulveda',        numero: '7'  },
-    { nom: 'Annie Choquette',        numero: '11' },
-    { nom: 'Myriam Neveu',           numero: '11' },
-    { nom: 'Karyne Wagner',          numero: '24' },
-    { nom: 'Laurie Guinard-Gélinas', numero: '15' },
-    { nom: 'Louis Philippe Blouin',  numero: '4'  },
-    { nom: 'Mathieu Wagner',         numero: '45' },
-    { nom: 'Philippe Bordeleau',     numero: '31' },
-    { nom: 'Véronique Cadieux',      numero: '5'  },
-  ];
+  // Liste des joueurs — désormais stockée dans Firebase (config/joueurs).
+  // SEED_JOUEURS sert UNIQUEMENT au premier démarrage pour initialiser la base si elle est vide.
+  const SEED_JOUEURS = {
+    'Martin St-Pierre':       { nom: 'Martin St-Pierre',       numero: '22' },
+    'Ramon Sepulveda':        { nom: 'Ramon Sepulveda',        numero: '7'  },
+    'Annie Choquette':        { nom: 'Annie Choquette',        numero: '11' },
+    'Myriam Neveu':           { nom: 'Myriam Neveu',           numero: '11' },
+    'Karyne Wagner':          { nom: 'Karyne Wagner',          numero: '24' },
+    'Laurie Guinard-Gélinas': { nom: 'Laurie Guinard-Gélinas', numero: '15' },
+    'Louis Philippe Blouin':  { nom: 'Louis Philippe Blouin',  numero: '4'  },
+    'Mathieu Wagner':         { nom: 'Mathieu Wagner',         numero: '45' },
+    'Philippe Bordeleau':     { nom: 'Philippe Bordeleau',     numero: '31' },
+    'Véronique Cadieux':      { nom: 'Véronique Cadieux',      numero: '5'  },
+    'Elaine Hurtubise':       { nom: 'Elaine Hurtubise',       numero: '19' },
+    'Gabriel Houle':          { nom: 'Gabriel Houle',          numero: '77' },
+    'Luc Houle':              { nom: 'Luc Houle',              numero: '77' },
+    'Shirley Dang':           { nom: 'Shirley Dang',           numero: '11' },
+    'Simon Provost':          { nom: 'Simon Provost',          numero: '14' },
+  };
+  let joueursData = {};
+  let joueursListener = null;
   const COTES = ['H12', 'H11', 'W8', 'W7', 'NC'];
   const POINTS = { H12: 10, H11: 20, W8: 10, W7: 20, NC: 10 };
   let cotesData = {};
@@ -407,29 +405,92 @@
   let remplacantsData = {};
   let remplacantsListener = null;
   let currentVotesData = {};
-  let deletedJoueurs = {};
-  let deletedListener = null;
   let configSort = { field: 'nom', dir: 'asc' };
 
-  const matches = [
-    {label:"@ Monkeys Family", heure:"Lundi 18 mai 2026 à 20h15", surface:"Surface (2) - LDK", date:'2026-05-18'},
-    {label:"@ Veggies", heure:"Lundi 25 mai 2026 à 18h35", surface:"Surface (2) - LDK", date:'2026-05-25'},
-    {label:"vs Wolfpack", heure:"Lundi 1 juin 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-06-01'},
-    {label:"vs Fringants", heure:"Lundi 8 juin 2026 à 17h45", surface:"Surface (2) - LDK", date:'2026-06-08'},
-    {label:"@ Fringants", heure:"Lundi 15 juin 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-06-15'},
-    {label:"vs Grandes Yeules", heure:"Lundi 22 juin 2026 à 18h35", surface:"Surface (1) - Knapper", date:'2026-06-22'},
-    {label:"@ Phœnix", heure:"Lundi 29 juin 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-06-29'},
-    {label:"@ Pucking Legends", heure:"Lundi 29 juin 2026 à 19h25", surface:"Surface (1) - Knapper", date:'2026-06-29'},
-    {label:"vs Veggies", heure:"Lundi 13 juillet 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-07-13'},
-  ];
+  // Matchs — désormais stockés dans Firebase (config/matches), clés stables "match_N".
+  // SEED_MATCHES sert UNIQUEMENT au premier démarrage pour initialiser la base si elle est vide.
+  const SEED_MATCHES = {
+    match_0: {label:"@ Monkeys Family", heure:"Lundi 18 mai 2026 à 20h15", surface:"Surface (2) - LDK", date:'2026-05-18'},
+    match_1: {label:"@ Veggies", heure:"Lundi 25 mai 2026 à 18h35", surface:"Surface (2) - LDK", date:'2026-05-25'},
+    match_2: {label:"vs Wolfpack", heure:"Lundi 1 juin 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-06-01'},
+    match_3: {label:"vs Fringants", heure:"Lundi 8 juin 2026 à 17h45", surface:"Surface (2) - LDK", date:'2026-06-08'},
+    match_4: {label:"@ Fringants", heure:"Lundi 15 juin 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-06-15'},
+    match_5: {label:"vs Grandes Yeules", heure:"Lundi 22 juin 2026 à 18h35", surface:"Surface (1) - Knapper", date:'2026-06-22'},
+    match_6: {label:"@ Phœnix", heure:"Lundi 29 juin 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-06-29'},
+    match_7: {label:"@ Pucking Legends", heure:"Lundi 29 juin 2026 à 19h25", surface:"Surface (1) - Knapper", date:'2026-06-29'},
+    match_8: {label:"vs Veggies", heure:"Lundi 13 juillet 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-07-13'},
+  };
+  let matchesData = {};
+  let matchesLoaded = false;
+
+  // Liste des matchs triée par date : [{ n, label, heure, surface, date }]
+  function matchesList() {
+    return Object.keys(matchesData)
+      .map(k => ({ n: parseInt(k.slice(6), 10), ...matchesData[k] }))
+      .filter(m => !isNaN(m.n))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  }
+
+  function getMatch(idx) {
+    return matchesData['match_' + idx] || { label: '', heure: '', surface: '', date: '' };
+  }
 
   function getNextMatchIdx() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    for (let i = 0; i < matches.length; i++) {
-      if (new Date(matches[i].date) >= today) return i;
+    const list = matchesList();
+    for (const m of list) {
+      if (m.date && new Date(m.date) >= today) return m.n;
     }
-    return matches.length - 1;
+    return list.length ? list[list.length - 1].n : 0;
+  }
+
+  // "2026-05-18" -> "Lundi 18 mai"
+  function formatCourt(dateStr) {
+    if (!dateStr) return '';
+    const [y, mo, d] = dateStr.split('-').map(Number);
+    const s = new Date(y, mo - 1, d).toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  // "2026-05-18" -> "Lundi 18 mai 2026"
+  function formatLong(dateStr) {
+    if (!dateStr) return '';
+    const [y, mo, d] = dateStr.split('-').map(Number);
+    const s = new Date(y, mo - 1, d).toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  function esc(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
+
+  function setMatchInfo(prefix, idx) {
+    const m = getMatch(idx);
+    const t = document.getElementById(prefix + 'titre');
+    const h = document.getElementById(prefix + 'heure');
+    const s = document.getElementById(prefix + 'surface');
+    if (t) t.textContent = m.label;
+    if (h) h.textContent = '⏰ ' + m.heure;
+    if (s) s.textContent = '📍 ' + m.surface;
+  }
+
+  function renderMatchSelects() {
+    const opts = matchesList()
+      .map(m => `<option value="${m.n}">${formatCourt(m.date)} — ${m.label}</option>`)
+      .join('');
+    ['match-joueur', 'match-align', 'match-cap'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const cur = el.value;
+      el.innerHTML = opts;
+      if (cur !== '' && matchesData['match_' + cur]) el.value = cur;
+    });
+  }
+
+  function refreshMatchInfos() {
+    [['j-', 'match-joueur'], ['al-', 'match-align'], ['c-', 'match-cap']].forEach(([p, sid]) => {
+      const el = document.getElementById(sid);
+      if (el && el.value !== '') setMatchInfo(p, el.value);
+    });
   }
 
   const badgeClass = {present:'badge-present', absent:'badge-absent', remplace:'badge-remplace'};
@@ -442,8 +503,6 @@
   let capListener = null;
   let alignListener = null;
   let capAlignListener = null;
-  let extrasJoueurs = {};
-  let extrasListener = null;
 
   function getPlayerInfo() {
     const val = document.getElementById('player-select').value;
@@ -569,10 +628,7 @@
 
   window.updateInfoJoueur = function() {
     const idx = document.getElementById('match-joueur').value;
-    const m = matches[idx];
-    document.getElementById('j-titre').textContent = m.label;
-    document.getElementById('j-heure').textContent = '⏰ ' + m.heure;
-    document.getElementById('j-surface').textContent = '📍 ' + m.surface;
+    setMatchInfo('j-', idx);
     selectedVote = null;
     ['btn-present','btn-absent','btn-remplace'].forEach(id => document.getElementById(id).className = 'vote-btn');
     document.getElementById('success-zone').innerHTML = '';
@@ -611,6 +667,7 @@
     document.getElementById('cap-content').style.display = 'block';
     if (!pinValidated) {
       pinValidated = true;
+      seedIfEmpty();
       const capIdx = document.getElementById('match-cap').value;
       listenCap(capIdx);
       listenCapAlign(capIdx);
@@ -619,6 +676,7 @@
       listenSurnoms();
       listenRemplacants();
       initAlignInputs();
+      renderMatchesConfig();
     }
   }
 
@@ -642,17 +700,14 @@
   window.updateCapitaineView = function() {
     if (!pinValidated) return;
     const idx = document.getElementById('match-cap').value;
-    const m = matches[idx];
-    document.getElementById('c-titre').textContent = m.label;
-    document.getElementById('c-heure').textContent = '⏰ ' + m.heure;
-    document.getElementById('c-surface').textContent = '📍 ' + m.surface;
+    setMatchInfo('c-', idx);
     listenCap(idx);
     listenCapAlign(idx);
   };
 
   window.copierAlignement = function() {
     const idx = document.getElementById('match-cap').value;
-    const m = matches[idx];
+    const m = getMatch(idx);
     const raw = id => document.getElementById(id)?.value.trim() || '';
     const v = id => { const n = raw(id); if (!n) return '—'; return surnomsData[toSafe(n)] || prenomOf(n); };
     const msg = [
@@ -679,7 +734,7 @@
 
   window.copierMessage = function() {
     const idx = document.getElementById('match-cap').value;
-    const m = matches[idx];
+    const m = getMatch(idx);
     const msg = `🏒 Disponibilité — ${m.heure}\n${m.label} · ${m.surface}\n\nClique sur le lien et indique ta disponibilité en 5 secondes 👇\nhttps://martinsp85.github.io/Vieilles-Souches/`;
     navigator.clipboard.writeText(msg).then(() => {
       const btn = document.querySelector('.copy-btn');
@@ -692,16 +747,9 @@
   function prenomOf(nom) { const p = nom.split(' '); return p.length === 1 ? nom : p.slice(0, -1).join(' '); }
 
   function getAllJoueurs() {
-    const base = joueurs
-      .filter(j => !deletedJoueurs[toSafe(j.nom)])
-      .map(j => {
-        const sn = toSafe(j.nom);
-        return { ...j, numero: numerosData[sn] || j.numero, sn, isExtra: false };
-      });
-    const extras = Object.entries(extrasJoueurs).map(([sn, j]) => ({
-      ...j, numero: numerosData[sn] || j.numero, sn, isExtra: true
+    return Object.entries(joueursData).map(([sn, j]) => ({
+      nom: j.nom, numero: numerosData[sn] || j.numero, sn
     }));
-    return [...base, ...extras];
   }
 
   function updatePlayerSelect() {
@@ -713,12 +761,12 @@
     sel.value = cur;
   }
 
-  function listenExtras() {
-    if (extrasListener) extrasListener();
-    extrasListener = onValue(ref(db, 'config/joueurs_extra'), (snapshot) => {
-      extrasJoueurs = snapshot.val() || {};
+  function listenJoueurs() {
+    if (joueursListener) joueursListener();
+    joueursListener = onValue(ref(db, 'config/joueurs'), (snapshot) => {
+      joueursData = snapshot.val() || {};
       updatePlayerSelect();
-      if (pinValidated) renderJoueursConfig(cotesData);
+      if (pinValidated) renderJoueursConfig();
     });
   }
 
@@ -737,31 +785,21 @@
       return;
     }
     errEl.innerHTML = '';
-    await set(ref(db, `config/joueurs_extra/${sn}`), { nom, numero });
+    await set(ref(db, `config/joueurs/${sn}`), { nom, numero });
     if (cote) await set(ref(db, `config/cotes/${sn}`), cote);
     document.getElementById('new-player-nom').value = '';
     document.getElementById('new-player-num').value = '';
     document.getElementById('new-player-cote').value = '';
   };
 
-  window.supprimerJoueur = async function(sn, isExtra) {
+  window.supprimerJoueur = async function(sn) {
     if (!confirm('Supprimer ce joueur ?')) return;
-    if (isExtra) await remove(ref(db, `config/joueurs_extra/${sn}`));
-    else await set(ref(db, `config/joueurs_deleted/${sn}`), true);
+    await remove(ref(db, `config/joueurs/${sn}`));
     await remove(ref(db, `config/cotes/${sn}`));
     await remove(ref(db, `config/numeros/${sn}`));
     await remove(ref(db, `config/surnoms/${sn}`));
     await remove(ref(db, `config/remplacants/${sn}`));
   };
-
-  function listenDeleted() {
-    if (deletedListener) deletedListener();
-    deletedListener = onValue(ref(db, 'config/joueurs_deleted'), (snapshot) => {
-      deletedJoueurs = snapshot.val() || {};
-      updatePlayerSelect();
-      if (pinValidated) renderJoueursConfig();
-    });
-  }
 
   window.setConfigSort = function(field) {
     configSort.dir = configSort.field === field && configSort.dir === 'asc' ? 'desc' : 'asc';
@@ -871,7 +909,7 @@
                 <option value="">—</option>
                 ${COTES.map(c => `<option value="${c}" ${cur === c ? 'selected' : ''}>${c}</option>`).join('')}
               </select></td>
-              <td><button class="delete-vote-btn" onclick="supprimerJoueur('${j.sn}',${j.isExtra})" title="Supprimer">✕</button></td>
+              <td><button class="delete-vote-btn" onclick="supprimerJoueur('${j.sn}')" title="Supprimer">✕</button></td>
             </tr>`;
           }).join('')}</tbody>
         </table></div>`;
@@ -996,10 +1034,7 @@
 
   window.updateAlignementMatch = function() {
     const idx = document.getElementById('match-align').value;
-    const m = matches[idx];
-    document.getElementById('al-titre').textContent = m.label;
-    document.getElementById('al-heure').textContent = '⏰ ' + m.heure;
-    document.getElementById('al-surface').textContent = '📍 ' + m.surface;
+    setMatchInfo('al-', idx);
     listenAlignement(idx);
   };
 
@@ -1043,24 +1078,103 @@
     await remove(ref(db, `alignement/match_${idx}`));
   };
 
-  const defaultIdx = getNextMatchIdx();
-  ['match-joueur', 'match-align', 'match-cap'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = String(defaultIdx);
-  });
-  const dm = matches[defaultIdx];
-  document.getElementById('j-titre').textContent = dm.label;
-  document.getElementById('j-heure').textContent = '⏰ ' + dm.heure;
-  document.getElementById('j-surface').textContent = '📍 ' + dm.surface;
-  document.getElementById('al-titre').textContent = dm.label;
-  document.getElementById('al-heure').textContent = '⏰ ' + dm.heure;
-  document.getElementById('al-surface').textContent = '📍 ' + dm.surface;
-  document.getElementById('c-titre').textContent = dm.label;
-  document.getElementById('c-heure').textContent = '⏰ ' + dm.heure;
-  document.getElementById('c-surface').textContent = '📍 ' + dm.surface;
-  listenExtras();
-  listenDeleted();
-  listenJoueur(defaultIdx);
+  // ── Gestion des matchs (section Capitaine) ─────────────────
+  function renderMatchesConfig() {
+    const el = document.getElementById('matches-config-list');
+    if (!el) return;
+    const list = matchesList();
+    el.innerHTML = list.length === 0
+      ? '<div class="empty">Aucun match</div>'
+      : `<div style="overflow-x:auto"><table class="config-table">
+          <thead><tr><th>Date</th><th>Adversaire</th><th>Heure</th><th>Surface</th><th></th></tr></thead>
+          <tbody>${list.map(m => {
+            const time = (m.heure || '').split(' à ')[1] || '';
+            return `<tr>
+              <td><input class="surnom-input" type="date" value="${esc(m.date)}" onchange="updateMatchField(${m.n},'date',this.value)" /></td>
+              <td><input class="surnom-input" value="${esc(m.label)}" onchange="updateMatchField(${m.n},'label',this.value)" /></td>
+              <td><input class="surnom-input" value="${esc(time)}" placeholder="20h15" onchange="updateMatchField(${m.n},'time',this.value)" /></td>
+              <td><input class="surnom-input" value="${esc(m.surface)}" onchange="updateMatchField(${m.n},'surface',this.value)" /></td>
+              <td><button class="delete-vote-btn" onclick="supprimerMatch(${m.n})" title="Supprimer">✕</button></td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table></div>`;
+  }
+
+  window.updateMatchField = async function(n, field, value) {
+    const key = 'match_' + n;
+    const m = { ...(matchesData[key] || {}) };
+    if (field === 'time') {
+      m.heure = m.date ? formatLong(m.date) + ' à ' + value.trim() : value.trim();
+    } else if (field === 'date') {
+      m.date = value;
+      const time = (m.heure || '').split(' à ')[1] || '';
+      m.heure = value ? formatLong(value) + (time ? ' à ' + time : '') : time;
+    } else {
+      m[field] = value.trim();
+    }
+    await set(ref(db, 'config/' + key), m);
+  };
+
+  window.ajouterMatch = async function() {
+    const label = document.getElementById('new-match-adv').value.trim();
+    const date = document.getElementById('new-match-date').value;
+    const time = document.getElementById('new-match-heure').value.trim();
+    const surface = document.getElementById('new-match-surface').value.trim();
+    const err = document.getElementById('add-match-error');
+    if (!label || !date) {
+      err.innerHTML = '<div class="error-box">Adversaire et date requis.</div>';
+      return;
+    }
+    err.innerHTML = '';
+    const nums = Object.keys(matchesData).map(k => parseInt(k.slice(6), 10)).filter(x => !isNaN(x));
+    const next = nums.length ? Math.max(...nums) + 1 : 0;
+    const heure = formatLong(date) + (time ? ' à ' + time : '');
+    await set(ref(db, `config/matches/match_${next}`), { label, date, surface, heure });
+    ['new-match-adv', 'new-match-date', 'new-match-heure', 'new-match-surface'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+  };
+
+  window.supprimerMatch = async function(n) {
+    if (!confirm('Supprimer ce match ? Les votes et l\'alignement de ce match seront aussi effacés.')) return;
+    await remove(ref(db, `config/matches/match_${n}`));
+    await remove(ref(db, `votes/match_${n}`));
+    await remove(ref(db, `alignement/match_${n}`));
+  };
+
+  // Semis unique : initialise Firebase si les nœuds sont vides (capitaine connecté).
+  async function seedIfEmpty() {
+    try {
+      const js = await get(ref(db, 'config/joueurs'));
+      if (!js.exists()) await set(ref(db, 'config/joueurs'), SEED_JOUEURS);
+      const ms = await get(ref(db, 'config/matches'));
+      if (!ms.exists()) await set(ref(db, 'config/matches'), SEED_MATCHES);
+    } catch (e) {
+      console.error('Semis échoué :', e);
+    }
+  }
+
+  function listenMatches() {
+    onValue(ref(db, 'config/matches'), (snapshot) => {
+      matchesData = snapshot.val() || {};
+      renderMatchSelects();
+      if (!matchesLoaded && matchesList().length) {
+        matchesLoaded = true;
+        const def = getNextMatchIdx();
+        ['match-joueur', 'match-align', 'match-cap'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = String(def);
+        });
+        listenJoueur(def);
+        if (pinValidated) { listenCap(def); listenCapAlign(def); }
+      }
+      refreshMatchInfos();
+      if (pinValidated) renderMatchesConfig();
+    });
+  }
+
+  listenJoueurs();
+  listenMatches();
 
   onAuthStateChanged(auth, (user) => {
     if (user && user.uid === CAP_UID) {

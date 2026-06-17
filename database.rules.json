@@ -1,0 +1,31 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "votes": {
+      ".read": true,
+      "$matchId": {
+        ".validate": "$matchId.matches(/^match_[0-9]+$/)",
+        ".write": "auth != null && auth.uid === 'RvAkqW5p2aMQPelrsdkXLfOmi653'",
+        "$joueur": {
+          ".write": true,
+          ".validate": "newData.isString() && newData.val().length <= 20 && (newData.val() === 'present' || newData.val() === 'absent' || newData.val() === 'remplace')"
+        }
+      }
+    },
+
+    "alignement": {
+      ".read": true,
+      "$matchId": {
+        ".validate": "$matchId.matches(/^match_[0-9]+$/)",
+        ".write": "auth != null && auth.uid === 'RvAkqW5p2aMQPelrsdkXLfOmi653'"
+      }
+    },
+
+    "config": {
+      ".read": true,
+      ".write": "auth != null && auth.uid === 'RvAkqW5p2aMQPelrsdkXLfOmi653'"
+    }
+  }
+}
