@@ -352,7 +352,7 @@
 
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getDatabase, ref, set, remove, onValue, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+  import { getDatabase, ref, set, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
   // ⚙️ REMPLACE CES VALEURS PAR TES INFOS FIREBASE
@@ -373,25 +373,7 @@
   const auth = getAuth(app);
   const googleProvider = new GoogleAuthProvider();
 
-  // Liste des joueurs — désormais stockée dans Firebase (config/joueurs).
-  // SEED_JOUEURS sert UNIQUEMENT au premier démarrage pour initialiser la base si elle est vide.
-  const SEED_JOUEURS = {
-    'Martin St-Pierre':       { nom: 'Martin St-Pierre',       numero: '22' },
-    'Ramon Sepulveda':        { nom: 'Ramon Sepulveda',        numero: '7'  },
-    'Annie Choquette':        { nom: 'Annie Choquette',        numero: '11' },
-    'Myriam Neveu':           { nom: 'Myriam Neveu',           numero: '11' },
-    'Karyne Wagner':          { nom: 'Karyne Wagner',          numero: '24' },
-    'Laurie Guinard-Gélinas': { nom: 'Laurie Guinard-Gélinas', numero: '15' },
-    'Louis Philippe Blouin':  { nom: 'Louis Philippe Blouin',  numero: '4'  },
-    'Mathieu Wagner':         { nom: 'Mathieu Wagner',         numero: '45' },
-    'Philippe Bordeleau':     { nom: 'Philippe Bordeleau',     numero: '31' },
-    'Véronique Cadieux':      { nom: 'Véronique Cadieux',      numero: '5'  },
-    'Elaine Hurtubise':       { nom: 'Elaine Hurtubise',       numero: '19' },
-    'Gabriel Houle':          { nom: 'Gabriel Houle',          numero: '77' },
-    'Luc Houle':              { nom: 'Luc Houle',              numero: '77' },
-    'Shirley Dang':           { nom: 'Shirley Dang',           numero: '11' },
-    'Simon Provost':          { nom: 'Simon Provost',          numero: '14' },
-  };
+  // Liste des joueurs — stockée dans Firebase (config/joueurs).
   let joueursData = {};
   let joueursListener = null;
   const COTES = ['H12', 'H11', 'W8', 'W7', 'NC'];
@@ -407,19 +389,7 @@
   let currentVotesData = {};
   let configSort = { field: 'nom', dir: 'asc' };
 
-  // Matchs — désormais stockés dans Firebase (config/matches), clés stables "match_N".
-  // SEED_MATCHES sert UNIQUEMENT au premier démarrage pour initialiser la base si elle est vide.
-  const SEED_MATCHES = {
-    match_0: {label:"@ Monkeys Family", heure:"Lundi 18 mai 2026 à 20h15", surface:"Surface (2) - LDK", date:'2026-05-18'},
-    match_1: {label:"@ Veggies", heure:"Lundi 25 mai 2026 à 18h35", surface:"Surface (2) - LDK", date:'2026-05-25'},
-    match_2: {label:"vs Wolfpack", heure:"Lundi 1 juin 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-06-01'},
-    match_3: {label:"vs Fringants", heure:"Lundi 8 juin 2026 à 17h45", surface:"Surface (2) - LDK", date:'2026-06-08'},
-    match_4: {label:"@ Fringants", heure:"Lundi 15 juin 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-06-15'},
-    match_5: {label:"vs Grandes Yeules", heure:"Lundi 22 juin 2026 à 18h35", surface:"Surface (1) - Knapper", date:'2026-06-22'},
-    match_6: {label:"@ Phœnix", heure:"Lundi 29 juin 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-06-29'},
-    match_7: {label:"@ Pucking Legends", heure:"Lundi 29 juin 2026 à 19h25", surface:"Surface (1) - Knapper", date:'2026-06-29'},
-    match_8: {label:"vs Veggies", heure:"Lundi 13 juillet 2026 à 17h45", surface:"Surface (1) - Knapper", date:'2026-07-13'},
-  };
+  // Matchs — stockés dans Firebase (config/matches), clés stables "match_N".
   let matchesData = {};
   let matchesLoaded = false;
 
@@ -667,7 +637,6 @@
     document.getElementById('cap-content').style.display = 'block';
     if (!pinValidated) {
       pinValidated = true;
-      seedIfEmpty();
       const capIdx = document.getElementById('match-cap').value;
       listenCap(capIdx);
       listenCapAlign(capIdx);
@@ -1141,18 +1110,6 @@
     await remove(ref(db, `votes/match_${n}`));
     await remove(ref(db, `alignement/match_${n}`));
   };
-
-  // Semis unique : initialise Firebase si les nœuds sont vides (capitaine connecté).
-  async function seedIfEmpty() {
-    try {
-      const js = await get(ref(db, 'config/joueurs'));
-      if (!js.exists()) await set(ref(db, 'config/joueurs'), SEED_JOUEURS);
-      const ms = await get(ref(db, 'config/matches'));
-      if (!ms.exists()) await set(ref(db, 'config/matches'), SEED_MATCHES);
-    } catch (e) {
-      console.error('Semis échoué :', e);
-    }
-  }
 
   function listenMatches() {
     onValue(ref(db, 'config/matches'), (snapshot) => {
