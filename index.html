@@ -142,9 +142,9 @@
         <option value="">Chargement…</option>
       </select>
       <div class="match-info">
-        <div class="titre" id="j-titre">@ Monkeys Family</div>
-        <div class="detail" id="j-heure">⏰ Lundi 18 mai 2026 à 20h15</div>
-        <div class="detail" id="j-surface">📍 Surface (2) - LDK</div>
+        <div class="titre" id="j-titre"></div>
+        <div class="detail" id="j-heure"></div>
+        <div class="detail" id="j-surface"></div>
       </div>
     </div>
     <div class="wide-grid">
@@ -199,9 +199,9 @@
         <option value="">Chargement…</option>
       </select>
       <div class="match-info">
-        <div class="titre" id="al-titre">@ Monkeys Family</div>
-        <div class="detail" id="al-heure">⏰ Lundi 18 mai 2026 à 20h15</div>
-        <div class="detail" id="al-surface">📍 Surface (2) - LDK</div>
+        <div class="titre" id="al-titre"></div>
+        <div class="detail" id="al-heure"></div>
+        <div class="detail" id="al-surface"></div>
       </div>
       <div id="alignement-display">
         <div class="lineup-not-published">
@@ -233,13 +233,15 @@
 
     <div id="cap-content" style="display:none">
       <div class="card">
+        <span class="player-select-label">Saison</span>
+        <select id="saison-cap" onchange="changerSaisonCap()"></select>
         <select id="match-cap" onchange="updateCapitaineView()">
           <option value="">Chargement…</option>
         </select>
         <div class="match-info">
-          <div class="titre" id="c-titre">@ Monkeys Family</div>
-          <div class="detail" id="c-heure">⏰ Lundi 18 mai 2026 à 20h15</div>
-          <div class="detail" id="c-surface">📍 Surface (2) - LDK</div>
+          <div class="titre" id="c-titre"></div>
+          <div class="detail" id="c-heure"></div>
+          <div class="detail" id="c-surface"></div>
         </div>
         <div class="stats-grid">
           <div class="stat"><div class="stat-num green" id="cnt-p">0</div><div class="stat-label">Présent(e)s</div></div>
@@ -346,13 +348,24 @@
         <button class="confirm-btn" onclick="ajouterMatch()">+ Ajouter</button>
         <div id="add-match-error" style="margin-top:8px"></div>
       </div>
+
+      <div class="card">
+        <div class="section-title">📅 Saisons</div>
+        <div id="saisons-config-list" style="overflow-x:auto"></div>
+        <div id="saisons-orphelins"></div>
+        <div class="divider"></div>
+        <div class="section-title" style="margin-bottom:8px">Ajouter une saison</div>
+        <input class="align-input" id="new-saison-nom" placeholder="Nom (ex : Automne 2026)" autocomplete="off" style="margin-bottom:10px" />
+        <button class="confirm-btn" onclick="ajouterSaison()">+ Ajouter</button>
+        <div id="add-saison-error" style="margin-top:8px"></div>
+      </div>
     </div>
   </div>
 </div>
 
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getDatabase, ref, set, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+  import { getDatabase, ref, set, update, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
   // ⚙️ REMPLACE CES VALEURS PAR TES INFOS FIREBASE
@@ -393,11 +406,19 @@
   let matchesData = {};
   let matchesLoaded = false;
 
-  // Liste des matchs triée par date : [{ n, label, heure, surface, date }]
-  function matchesList() {
+  // Saisons — config/saisons/<id> = { nom }, config/saisonActive = "<id>".
+  // Sans saison active, aucun filtre (tous les matchs).
+  let saisonsData = {};
+  let saisonActive = null;
+  let saisonActiveLoaded = false;
+  let capSaison = null;
+
+  // Liste des matchs triée par date : [{ n, label, heure, surface, date, saison }]
+  // Avec saisonId, ne garde que les matchs de cette saison.
+  function matchesList(saisonId) {
     return Object.keys(matchesData)
       .map(k => ({ n: parseInt(k.slice(6), 10), ...matchesData[k] }))
-      .filter(m => !isNaN(m.n))
+      .filter(m => !isNaN(m.n) && (!saisonId || m.saison === saisonId))
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   }
 
@@ -405,14 +426,26 @@
     return matchesData['match_' + idx] || { label: '', heure: '', surface: '', date: '' };
   }
 
-  function getNextMatchIdx() {
+  function getNextMatchIdx(saisonId) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const list = matchesList();
+    const list = matchesList(saisonId);
     for (const m of list) {
       if (m.date && new Date(m.date) >= today) return m.n;
     }
-    return list.length ? list[list.length - 1].n : 0;
+    return list.length ? list[list.length - 1].n : '';
+  }
+
+  // "Automne 2026" -> "automne_2026"
+  function slugSaison(nom) {
+    return nom.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  }
+
+  function saisonsList() {
+    return Object.entries(saisonsData)
+      .map(([id, s]) => ({ id, nom: s.nom || id, cree: s.cree || 0 }))
+      .sort((a, b) => a.cree - b.cree || a.nom.localeCompare(b.nom));
   }
 
   // "2026-05-18" -> "Lundi 18 mai"
@@ -434,32 +467,50 @@
   function esc(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
 
   function setMatchInfo(prefix, idx) {
-    const m = getMatch(idx);
     const t = document.getElementById(prefix + 'titre');
     const h = document.getElementById(prefix + 'heure');
     const s = document.getElementById(prefix + 'surface');
+    if (idx === '' || !matchesData['match_' + idx]) {
+      if (t) t.textContent = 'Aucun match pour cette saison';
+      if (h) h.textContent = '';
+      if (s) s.textContent = '';
+      return;
+    }
+    const m = getMatch(idx);
     if (t) t.textContent = m.label;
     if (h) h.textContent = '⏰ ' + m.heure;
     if (s) s.textContent = '📍 ' + m.surface;
   }
 
+  function matchOptions(saisonId) {
+    const list = matchesList(saisonId);
+    if (!list.length) return '<option value="">Aucun match pour cette saison</option>';
+    return list.map(m => `<option value="${m.n}">${formatCourt(m.date)} — ${m.label}</option>`).join('');
+  }
+
   function renderMatchSelects() {
-    const opts = matchesList()
-      .map(m => `<option value="${m.n}">${formatCourt(m.date)} — ${m.label}</option>`)
-      .join('');
-    ['match-joueur', 'match-align', 'match-cap'].forEach(id => {
+    [['match-joueur', saisonActive], ['match-align', saisonActive], ['match-cap', capSaison]].forEach(([id, saisonId]) => {
       const el = document.getElementById(id);
       if (!el) return;
       const cur = el.value;
-      el.innerHTML = opts;
-      if (cur !== '' && matchesData['match_' + cur]) el.value = cur;
+      el.innerHTML = matchOptions(saisonId);
+      if (cur !== '' && matchesList(saisonId).some(m => String(m.n) === cur)) el.value = cur;
+      else el.value = String(getNextMatchIdx(saisonId));
+      if (el.value !== cur) onMatchSelectChange[id]();
     });
   }
+
+  // Quand la sélection change par programme (saison changée, premier match ajouté…)
+  const onMatchSelectChange = {
+    'match-joueur': () => window.updateInfoJoueur(),
+    'match-align': () => window.updateAlignementMatch(),
+    'match-cap': () => window.updateCapitaineView(),
+  };
 
   function refreshMatchInfos() {
     [['j-', 'match-joueur'], ['al-', 'match-align'], ['c-', 'match-cap']].forEach(([p, sid]) => {
       const el = document.getElementById(sid);
-      if (el && el.value !== '') setMatchInfo(p, el.value);
+      if (el) setMatchInfo(p, el.value);
     });
   }
 
@@ -523,7 +574,12 @@
   };
 
   function listenJoueur(idx) {
-    if (joueurListener) joueurListener();
+    if (joueurListener) { joueurListener(); joueurListener = null; }
+    if (idx === '') {
+      renderVotersList({}, 'j-voters-list');
+      ['j-cnt-p', 'j-cnt-a', 'j-cnt-r'].forEach(id => document.getElementById(id).textContent = 0);
+      return;
+    }
     joueurListener = onValue(ref(db, `votes/match_${idx}`), (snapshot) => {
       const data = snapshot.val() || {};
       const counts = renderVotersList(data, 'j-voters-list');
@@ -563,7 +619,14 @@
   }
 
   function listenCap(idx) {
-    if (capListener) capListener();
+    if (capListener) { capListener(); capListener = null; }
+    if (idx === '') {
+      renderVotersList({}, 'voters-list', true);
+      ['cnt-p', 'cnt-a', 'cnt-r'].forEach(id => document.getElementById(id).textContent = 0);
+      updateDatalist({});
+      renderCapStats({});
+      return;
+    }
     capListener = onValue(ref(db, `votes/match_${idx}`), (snapshot) => {
       const data = snapshot.val() || {};
       const counts = renderVotersList(data, 'voters-list', true);
@@ -622,7 +685,7 @@
   window.confirmerVote = async function() {
     const idx = document.getElementById('match-joueur').value;
     const { nom } = getPlayerInfo();
-    if (!nom || !selectedVote) return;
+    if (idx === '' || !nom || !selectedVote) return;
     const safeName = nom.replace(/[.#$\[\]]/g, '_');
     await set(ref(db, `votes/match_${idx}/${safeName}`), selectedVote);
     const labels = {present:'Présent(e)', absent:'Absent(e)', remplace:'Dispo pour remplacer'};
@@ -646,6 +709,7 @@
       listenRemplacants();
       initAlignInputs();
       renderMatchesConfig();
+      renderSaisonsUI();
     }
   }
 
@@ -975,14 +1039,16 @@
   }
 
   function listenAlignement(idx) {
-    if (alignListener) alignListener();
+    if (alignListener) { alignListener(); alignListener = null; }
+    if (idx === '') { renderAlignementDisplay(null); return; }
     alignListener = onValue(ref(db, `alignement/match_${idx}`), (snapshot) => {
       renderAlignementDisplay(snapshot.val());
     });
   }
 
   function listenCapAlign(idx) {
-    if (capAlignListener) capAlignListener();
+    if (capAlignListener) { capAlignListener(); capAlignListener = null; }
+    if (idx === '') return;
     capAlignListener = onValue(ref(db, `alignement/match_${idx}`), (snapshot) => {
       const data = snapshot.val() || {};
       const savedVals = {
@@ -1014,6 +1080,7 @@
       return;
     }
     const idx = document.getElementById('match-cap').value;
+    if (idx === '') { alert('Aucun match sélectionné.'); return; }
     const alignement = {
       gardien: document.getElementById('align-gardien').value.trim(),
       defenseurs: [
@@ -1044,6 +1111,7 @@
   window.effacerAlignement = async function() {
     if (!confirm('Effacer l\'alignement publié ?')) return;
     const idx = document.getElementById('match-cap').value;
+    if (idx === '') return;
     await remove(ref(db, `alignement/match_${idx}`));
   };
 
@@ -1051,11 +1119,16 @@
   function renderMatchesConfig() {
     const el = document.getElementById('matches-config-list');
     if (!el) return;
-    const list = matchesList();
+    const list = matchesList(capSaison);
+    const saisons = saisonsList();
+    const saisonSelect = m => saisons.length === 0 ? '' : `<td><select class="cote-select" onchange="updateMatchField(${m.n},'saison',this.value)">
+                ${m.saison && saisonsData[m.saison] ? '' : '<option value="" selected>—</option>'}
+                ${saisons.map(x => `<option value="${esc(x.id)}" ${m.saison === x.id ? 'selected' : ''}>${x.nom}</option>`).join('')}
+              </select></td>`;
     el.innerHTML = list.length === 0
       ? '<div class="empty">Aucun match</div>'
       : `<div style="overflow-x:auto"><table class="config-table">
-          <thead><tr><th>Date</th><th>Adversaire</th><th>Heure</th><th>Surface</th><th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Adversaire</th><th>Heure</th><th>Surface</th>${saisons.length ? '<th>Saison</th>' : ''}<th></th></tr></thead>
           <tbody>${list.map(m => {
             const time = (m.heure || '').split(' à ')[1] || '';
             return `<tr>
@@ -1063,6 +1136,7 @@
               <td><input class="surnom-input" value="${esc(m.label)}" onchange="updateMatchField(${m.n},'label',this.value)" /></td>
               <td><input class="surnom-input" value="${esc(time)}" placeholder="20h15" onchange="updateMatchField(${m.n},'time',this.value)" /></td>
               <td><input class="surnom-input" value="${esc(m.surface)}" onchange="updateMatchField(${m.n},'surface',this.value)" /></td>
+              ${saisonSelect(m)}
               <td><button class="delete-vote-btn" onclick="supprimerMatch(${m.n})" title="Supprimer">✕</button></td>
             </tr>`;
           }).join('')}</tbody>
@@ -1081,7 +1155,7 @@
     } else {
       m[field] = value.trim();
     }
-    await set(ref(db, 'config/' + key), m);
+    await set(ref(db, 'config/matches/' + key), m);
   };
 
   window.ajouterMatch = async function() {
@@ -1098,7 +1172,10 @@
     const nums = Object.keys(matchesData).map(k => parseInt(k.slice(6), 10)).filter(x => !isNaN(x));
     const next = nums.length ? Math.max(...nums) + 1 : 0;
     const heure = formatLong(date) + (time ? ' à ' + time : '');
-    await set(ref(db, `config/matches/match_${next}`), { label, date, surface, heure });
+    const match = { label, date, surface, heure };
+    const saison = capSaison || saisonActive;
+    if (saison) match.saison = saison;
+    await set(ref(db, `config/matches/match_${next}`), match);
     ['new-match-adv', 'new-match-date', 'new-match-heure', 'new-match-surface'].forEach(id => {
       document.getElementById(id).value = '';
     });
@@ -1111,27 +1188,118 @@
     await remove(ref(db, `alignement/match_${n}`));
   };
 
+  // Re-rend tout ce qui dépend des matchs/saisons, une fois les deux chargés.
+  function refreshMatchesUI() {
+    if (!matchesLoaded || !saisonActiveLoaded) return;
+    renderMatchSelects();
+    refreshMatchInfos();
+    renderSaisonsUI();
+    if (pinValidated) renderMatchesConfig();
+  }
+
   function listenMatches() {
     onValue(ref(db, 'config/matches'), (snapshot) => {
       matchesData = snapshot.val() || {};
-      renderMatchSelects();
-      if (!matchesLoaded && matchesList().length) {
-        matchesLoaded = true;
-        const def = getNextMatchIdx();
-        ['match-joueur', 'match-align', 'match-cap'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.value = String(def);
-        });
-        listenJoueur(def);
-        if (pinValidated) { listenCap(def); listenCapAlign(def); }
-      }
-      refreshMatchInfos();
-      if (pinValidated) renderMatchesConfig();
+      matchesLoaded = true;
+      refreshMatchesUI();
     });
   }
 
+  function listenSaisons() {
+    onValue(ref(db, 'config/saisons'), (snapshot) => {
+      saisonsData = snapshot.val() || {};
+      refreshMatchesUI();
+    });
+    onValue(ref(db, 'config/saisonActive'), (snapshot) => {
+      const prev = saisonActive;
+      saisonActive = snapshot.val() || null;
+      saisonActiveLoaded = true;
+      // Le capitaine suit la saison active, sauf s'il regarde une autre saison.
+      if (capSaison === prev) capSaison = saisonActive;
+      refreshMatchesUI();
+    });
+  }
+
+  // ── Gestion des saisons (section Capitaine) ────────────────
+  function renderSaisonsUI() {
+    const saisons = saisonsList();
+    const sel = document.getElementById('saison-cap');
+    if (sel) {
+      sel.innerHTML = saisons.map(x => `<option value="${esc(x.id)}">${x.nom}${x.id === saisonActive ? ' (active)' : ''}</option>`).join('') +
+        '<option value="">Tous les matchs</option>';
+      sel.value = capSaison || '';
+    }
+    if (!pinValidated) return;
+    const list = document.getElementById('saisons-config-list');
+    if (list) {
+      list.innerHTML = saisons.length === 0
+        ? '<div class="empty">Aucune saison — tous les matchs sont affichés</div>'
+        : `<table class="config-table">
+            <thead><tr><th>Saison</th><th>Matchs</th><th style="text-align:center">Active</th></tr></thead>
+            <tbody>${saisons.map(x => `<tr>
+              <td>${x.nom}</td>
+              <td>${matchesList(x.id).length}</td>
+              <td style="text-align:center"><input type="radio" name="saison-active" ${x.id === saisonActive ? 'checked' : ''} onchange="setSaisonActive('${x.id}')" /></td>
+            </tr>`).join('')}</tbody>
+          </table>`;
+    }
+    const orphEl = document.getElementById('saisons-orphelins');
+    if (orphEl) {
+      const orphelins = matchesList().filter(m => !m.saison || !saisonsData[m.saison]);
+      orphEl.innerHTML = orphelins.length === 0 || saisons.length === 0 ? '' : `
+        <div class="points-total-box neutral" style="margin-top:12px;text-align:left">
+          ${orphelins.length} match(s) sans saison
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <select id="saison-orphelins" class="cote-select" style="flex:1">
+              ${saisons.map(x => `<option value="${esc(x.id)}">${x.nom}</option>`).join('')}
+            </select>
+            <button class="sort-btn" onclick="rattacherOrphelins()">Rattacher</button>
+          </div>
+        </div>`;
+    }
+  }
+
+  window.changerSaisonCap = function() {
+    capSaison = document.getElementById('saison-cap').value || null;
+    renderMatchSelects();
+    refreshMatchInfos();
+    renderMatchesConfig();
+  };
+
+  window.setSaisonActive = async function(id) {
+    await set(ref(db, 'config/saisonActive'), id);
+  };
+
+  window.ajouterSaison = async function() {
+    const nom = document.getElementById('new-saison-nom').value.trim();
+    const err = document.getElementById('add-saison-error');
+    const id = slugSaison(nom);
+    if (!id) {
+      err.innerHTML = '<div class="error-box">Nom requis.</div>';
+      return;
+    }
+    if (saisonsData[id]) {
+      err.innerHTML = '<div class="error-box">Cette saison existe déjà.</div>';
+      return;
+    }
+    err.innerHTML = '';
+    await set(ref(db, `config/saisons/${id}`), { nom, cree: Date.now() });
+    document.getElementById('new-saison-nom').value = '';
+  };
+
+  window.rattacherOrphelins = async function() {
+    const id = document.getElementById('saison-orphelins').value;
+    const orphelins = matchesList().filter(m => !m.saison || !saisonsData[m.saison]);
+    if (!id || !orphelins.length) return;
+    if (!confirm(`Rattacher ${orphelins.length} match(s) à « ${saisonsData[id].nom} » ?`)) return;
+    const changes = {};
+    orphelins.forEach(m => { changes[`match_${m.n}/saison`] = id; });
+    await update(ref(db, 'config/matches'), changes);
+  };
+
   listenJoueurs();
   listenMatches();
+  listenSaisons();
 
   onAuthStateChanged(auth, (user) => {
     if (user && user.uid === CAP_UID) {
