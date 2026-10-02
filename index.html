@@ -700,6 +700,9 @@
     document.getElementById('cap-content').style.display = 'block';
     if (!pinValidated) {
       pinValidated = true;
+      // Chaque connexion revient à la saison active.
+      capSaison = saisonActive;
+      refreshMatchesUI();
       const capIdx = document.getElementById('match-cap').value;
       listenCap(capIdx);
       listenCapAlign(capIdx);
@@ -708,8 +711,6 @@
       listenSurnoms();
       listenRemplacants();
       initAlignInputs();
-      renderMatchesConfig();
-      renderSaisonsUI();
     }
   }
 
