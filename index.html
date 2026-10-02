@@ -399,6 +399,7 @@
   let surnomsListener = null;
   let remplacantsData = {};
   let remplacantsListener = null;
+  let inactifsData = {};
   let currentVotesData = {};
   let configSort = { field: 'nom', dir: 'asc' };
 
@@ -590,7 +591,7 @@
   }
 
   function renderCapStats(data) {
-    const reguliers = getAllJoueurs().filter(j => !remplacantsData[j.sn]);
+    const reguliers = getAllJoueurs().filter(j => !remplacantsData[j.sn] && !inactifsData[j.sn]);
     const voted = reguliers.filter(j => data[j.sn] !== undefined);
     const pct = reguliers.length > 0 ? Math.round(voted.length / reguliers.length * 100) : 0;
     const pctBox = document.getElementById('cap-pct-box');
@@ -791,8 +792,9 @@
     if (!sel) return;
     const cur = sel.value;
     sel.innerHTML = '<option value="">— Sélectionne ton nom —</option>' +
-      getAllJoueurs().map(j => `<option value="${j.nom}|${j.numero}">${j.nom}</option>`).join('');
+      getAllJoueurs().filter(j => !inactifsData[j.sn]).map(j => `<option value="${j.nom}|${j.numero}">${j.nom}</option>`).join('');
     sel.value = cur;
+    if (sel.value !== cur) window.onPlayerChange();
   }
 
   function listenJoueurs() {
@@ -833,6 +835,7 @@
     await remove(ref(db, `config/numeros/${sn}`));
     await remove(ref(db, `config/surnoms/${sn}`));
     await remove(ref(db, `config/remplacants/${sn}`));
+    await remove(ref(db, `config/inactifs/${sn}`));
   };
 
   window.setConfigSort = function(field) {
@@ -870,6 +873,23 @@
       }
     });
   }
+
+  // Écouté pour tous (pas seulement le capitaine) : filtre la liste « Qui es-tu ? ».
+  function listenInactifs() {
+    onValue(ref(db, 'config/inactifs'), (snapshot) => {
+      inactifsData = snapshot.val() || {};
+      updatePlayerSelect();
+      if (pinValidated) {
+        renderJoueursConfig();
+        renderCapStats(currentVotesData);
+      }
+    });
+  }
+
+  window.setActif = async function(sn, checked) {
+    if (checked) await remove(ref(db, `config/inactifs/${sn}`));
+    else await set(ref(db, `config/inactifs/${sn}`), true);
+  };
 
   window.setRemplacant = async function(sn, checked) {
     if (checked) await set(ref(db, `config/remplacants/${sn}`), true);
@@ -927,6 +947,7 @@
       : `<div style="overflow-x:auto"><table class="config-table">
           <thead><tr>
             <th>#</th><th>Nom</th><th>Surnom</th>
+            <th style="text-align:center">Actif</th>
             <th style="text-align:center">Rempl.</th>
             <th>Cote</th><th></th>
           </tr></thead>
@@ -934,10 +955,12 @@
             const cur = cotesData[j.sn] || '';
             const surnomVal = surnomsData[j.sn] || prenomOf(j.nom);
             const isRempl = !!remplacantsData[j.sn];
-            return `<tr>
+            const isActif = !inactifsData[j.sn];
+            return `<tr${isActif ? '' : ' style="opacity:0.5"'}>
               <td><input class="numero-input" value="${j.numero}" maxlength="3" onchange="setNumero('${j.sn}', this.value)" title="Numéro" /></td>
               <td style="white-space:nowrap">${j.nom}</td>
               <td><input class="surnom-input" value="${surnomVal}" placeholder="Surnom..." onchange="setSurnom('${j.sn}', this.value)" title="Surnom" /></td>
+              <td style="text-align:center"><input type="checkbox" ${isActif ? 'checked' : ''} onchange="setActif('${j.sn}', this.checked)" title="Actif" /></td>
               <td style="text-align:center"><input type="checkbox" ${isRempl ? 'checked' : ''} onchange="setRemplacant('${j.sn}', this.checked)" /></td>
               <td><select class="cote-select" onchange="setCote('${j.sn}', this.value)">
                 <option value="">—</option>
@@ -1299,6 +1322,7 @@
   };
 
   listenJoueurs();
+  listenInactifs();
   listenMatches();
   listenSaisons();
 
