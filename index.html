@@ -343,6 +343,15 @@
       <div class="card">
         <div class="section-title">🗓️ Gestion des matchs</div>
         <div id="matches-config-list" style="overflow-x:auto"></div>
+        <div id="import-section" style="display:none">
+          <div class="divider"></div>
+          <div class="section-title" style="margin-bottom:8px">📷 Importer depuis une capture</div>
+          <input type="file" id="import-capture" accept="image/*" style="display:none" onchange="importerCapture(this.files[0]); this.value = ''" />
+          <button class="copy-btn" style="margin-top:0" onclick="document.getElementById('import-capture').click()">📷 Choisir une capture d'écran</button>
+          <div style="font-size:12px;color:#999;margin-top:6px">Sur ordinateur, tu peux aussi coller une capture (Cmd+V) dans l'onglet Capitaine.</div>
+          <div id="import-status" style="margin-top:10px"></div>
+          <div id="import-preview"></div>
+        </div>
         <div class="divider"></div>
         <div class="section-title" style="margin-bottom:8px">Ajouter un match</div>
         <input class="align-input" id="new-match-adv" placeholder="Adversaire (ex : @ Veggies ou vs Wolfpack)" autocomplete="off" style="margin-bottom:8px" />
@@ -362,6 +371,19 @@
         <input class="align-input" id="new-saison-nom" placeholder="Nom (ex : Automne 2026)" autocomplete="off" style="margin-bottom:10px" />
         <button class="confirm-btn" onclick="ajouterSaison()">+ Ajouter</button>
         <div id="add-saison-error" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">⚙️ Configuration</div>
+        <span class="align-label">Clé API Anthropic (import de captures)</span>
+        <div id="cle-status" class="points-total-box neutral">Aucune clé : l'import de captures est désactivé.</div>
+        <input type="password" id="cle-api" placeholder="Coller une nouvelle clé sk-ant-…" autocomplete="off" style="margin-bottom:10px" />
+        <div style="display:flex;gap:8px">
+          <button class="confirm-btn" style="flex:2" onclick="enregistrerCle()">Enregistrer</button>
+          <button class="btn-danger" style="flex:1" onclick="supprimerCle()">Supprimer</button>
+        </div>
+        <div id="cle-error"></div>
+        <div style="font-size:12px;color:#999;margin-top:8px">Visible seulement par le capitaine. Crée une clé dédiée avec une limite de dépenses sur platform.claude.com.</div>
       </div>
     </div>
   </div>
@@ -490,7 +512,7 @@
   function matchOptions(saisonId) {
     const list = matchesList(saisonId);
     if (!list.length) return '<option value="">Aucun match pour cette saison</option>';
-    return list.map(m => `<option value="${m.n}">${formatCourt(m.date)} — ${m.label}</option>`).join('');
+    return list.map(m => `<option value="${m.n}">${formatCourt(m.date)} — ${escHtml(m.label)}</option>`).join('');
   }
 
   function renderMatchSelects() {
@@ -716,6 +738,7 @@
       listenSurnoms();
       listenRemplacants();
       initAlignInputs();
+      listenCle();
     }
   }
 
@@ -1325,6 +1348,297 @@
     await update(ref(db, 'config/matches'), changes);
   };
 
+  // ── Import de matchs depuis une capture d'écran ────────────
+  // La clé Anthropic est dans secrets/anthropicKey (lisible par le capitaine seulement,
+  // voir database.rules.json) : le navigateur du capitaine appelle Claude directement.
+  let cleApi = null;
+  let cleListener = null;
+  let importCandidats = [];
+  let sdkAnthropic = null;
+
+  // SDK chargé seulement au besoin (les joueurs ne le téléchargent jamais).
+  async function chargerSdk() {
+    if (!sdkAnthropic) sdkAnthropic = (await import('https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.131.0/+esm')).default;
+    return sdkAnthropic;
+  }
+
+  const SCHEMA_MATCHS = {
+    type: 'object',
+    properties: {
+      matchs: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            date: { type: 'string', format: 'date', description: 'AAAA-MM-JJ' },
+            heure: { type: 'string', description: 'Format 24 h québécois, ex. 20h15 ou 9h00' },
+            adversaire: { type: 'string', description: "Nom de l'équipe adverse, tel qu'écrit" },
+            domicile: { type: 'boolean', description: "true si les Vieilles Souches sont l'équipe locale" },
+            surface: { type: 'string', description: "Surface/patinoire/aréna tel qu'écrit, ou chaîne vide" },
+          },
+          required: ['date', 'heure', 'adversaire', 'domicile', 'surface'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['matchs'],
+    additionalProperties: false,
+  };
+
+  function promptImport(aujourdhui) {
+    return `Cette capture d'écran vient de l'horaire d'une ligue de dek hockey. Notre équipe s'appelle « Vieilles Souches » (parfois écrit « Les Vieilles Souches », abrégé ou sans accents).
+
+Extrais chaque match où notre équipe joue. Ignore les matchs entre deux autres équipes, les résultats/classements et tout ce qui n'est pas un match à l'horaire.
+
+Pour chaque match :
+- date : AAAA-MM-JJ. Si l'année n'est pas visible, prends l'année qui place le match le plus près d'aujourd'hui (${aujourdhui}).
+- heure : format 24 h québécois (ex. 20h15, 9h00). Convertis les « PM » au besoin.
+- adversaire : le nom de l'autre équipe, tel qu'écrit.
+- domicile : true si nous sommes l'équipe locale/domicile, false si nous sommes les visiteurs. Si la capture n'indique rien, considère la première équipe nommée comme visiteur et la seconde comme locale.
+- surface : la surface, patinoire ou aréna tel qu'écrit (ex. « Surface (2) - LDK »), ou une chaîne vide si absente.
+
+Si aucun match de notre équipe n'apparaît, renvoie une liste vide.`;
+  }
+
+  // Message d'erreur lisible pour une erreur du SDK.
+  function messageErreurApi(A, e) {
+    if (e instanceof A.AuthenticationError) return 'Clé API invalide ou révoquée. Remplace-la dans ⚙️ Configuration.';
+    if (e instanceof A.PermissionDeniedError) return "Cette clé n'a pas accès à ce modèle.";
+    if (e instanceof A.NotFoundError) return "Modèle non disponible pour ce compte Anthropic.";
+    if (e instanceof A.RateLimitError) return 'Trop de demandes, réessaie dans une minute.';
+    if (e instanceof A.APIConnectionError) return "Impossible de joindre l'API Claude. Vérifie ta connexion.";
+    if (e instanceof A.APIError) return `Erreur API Claude (${e.status}) : ${e.message}`;
+    return e.message || String(e);
+  }
+
+  // ── Configuration (clé API) ────────────────────────────────
+  function listenCle() {
+    if (cleListener) cleListener();
+    cleListener = onValue(ref(db, 'secrets/anthropicKey'), (snapshot) => {
+      cleApi = snapshot.val() || null;
+      renderCle();
+    }, () => { cleApi = null; renderCle(); });
+  }
+
+  function arreterCle() {
+    if (cleListener) { cleListener(); cleListener = null; }
+    cleApi = null;
+    renderCle();
+  }
+
+  function renderCle() {
+    const st = document.getElementById('cle-status');
+    if (st) {
+      st.className = 'points-total-box ' + (cleApi ? 'ok' : 'neutral');
+      st.textContent = cleApi ? `✅ Clé configurée (…${cleApi.slice(-4)})` : "Aucune clé : l'import de captures est désactivé.";
+    }
+    const sec = document.getElementById('import-section');
+    if (sec) sec.style.display = cleApi ? 'block' : 'none';
+  }
+
+  window.enregistrerCle = async function() {
+    const input = document.getElementById('cle-api');
+    const err = document.getElementById('cle-error');
+    const v = input.value.trim();
+    if (!v.startsWith('sk-ant-')) { err.innerHTML = '<div class="error-box" style="margin-top:8px">La clé doit commencer par sk-ant-</div>'; return; }
+    err.innerHTML = '<div class="points-total-box neutral" style="margin-top:8px">⏳ Vérification de la clé…</div>';
+    let A;
+    try {
+      A = await chargerSdk();
+      // Appel gratuit qui valide la clé et l'accès au modèle.
+      await new A({ apiKey: v, dangerouslyAllowBrowser: true }).models.retrieve('claude-opus-5-5');
+    } catch (e) {
+      err.innerHTML = `<div class="error-box" style="margin-top:8px">${escHtml(A ? messageErreurApi(A, e) : 'Impossible de charger le SDK Anthropic.')}</div>`;
+      return;
+    }
+    try {
+      await set(ref(db, 'secrets/anthropicKey'), v);
+    } catch (e) {
+      err.innerHTML = `<div class="error-box" style="margin-top:8px">Enregistrement refusé par Firebase (${escHtml(e.code || e.message)}). As-tu publié les nouvelles règles ?</div>`;
+      return;
+    }
+    input.value = '';
+    err.innerHTML = '';
+  };
+
+  window.supprimerCle = async function() {
+    if (!cleApi || !confirm("Supprimer la clé API ? L'import de captures sera désactivé.")) return;
+    await remove(ref(db, 'secrets/anthropicKey'));
+  };
+
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // "20h15", "20:15", "8 h" -> "20h15", "20h15", "8h00" ; '' si illisible
+  function cleHeure(h) {
+    const m = String(h || '').match(/(\d{1,2})\s*[h:]\s*(\d{2})?/i);
+    return m ? `${parseInt(m[1], 10)}h${m[2] || '00'}` : '';
+  }
+
+  // "@ Les Veggies" / "vs Wolfpack" -> "lesveggies" / "wolfpack"
+  function cleAdversaire(label) {
+    return String(label || '').replace(/^\s*(@|vs\.?)\s*/i, '')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  // Compare aux matchs existants (toutes saisons) et aux candidats précédents.
+  // deja = même date + même heure ; possible = même date + même adversaire.
+  function statutsImport() {
+    const existants = matchesList().map(m => ({ date: m.date, heure: cleHeure((m.heure || '').split(' à ')[1]), adv: cleAdversaire(m.label) }));
+    importCandidats.forEach((c, i) => {
+      const h = cleHeure(c.heure);
+      const adv = cleAdversaire(c.label);
+      const avant = importCandidats.slice(0, i).map(p => ({ date: p.date, heure: cleHeure(p.heure), adv: cleAdversaire(p.label) }));
+      if (existants.some(e => e.date === c.date && h && e.heure === h)) c.statut = 'deja';
+      else if (avant.some(e => e.date === c.date && h && e.heure === h)) c.statut = 'double';
+      else if (existants.some(e => e.date === c.date && e.adv === adv)) c.statut = 'possible';
+      else c.statut = 'nouveau';
+      if (c.choisi === undefined || c.statut === 'deja' || c.statut === 'double') c.choisi = c.statut === 'nouveau';
+    });
+  }
+
+  function renderImportPreview() {
+    const el = document.getElementById('import-preview');
+    if (!importCandidats.length) { el.innerHTML = ''; return; }
+    statutsImport();
+    const badges = {
+      nouveau: '<span class="badge badge-present">Nouveau</span>',
+      deja: '<span class="badge" style="background:#f5f5f5;color:#999">Déjà ajouté</span>',
+      double: '<span class="badge" style="background:#f5f5f5;color:#999">En double</span>',
+      possible: '<span class="badge" style="background:#fff3e0;color:#e65100">Doublon possible</span>',
+    };
+    const nb = importCandidats.filter(c => c.choisi).length;
+    const saison = capSaison || saisonActive;
+    el.innerHTML = `
+      <div style="overflow-x:auto;margin-top:8px"><table class="config-table">
+        <thead><tr><th></th><th>Date</th><th>Adversaire</th><th>Heure</th><th>Surface</th><th>Statut</th></tr></thead>
+        <tbody>${importCandidats.map((c, i) => {
+          const bloque = c.statut === 'deja' || c.statut === 'double';
+          return `<tr${bloque ? ' style="opacity:0.5"' : ''}>
+            <td><input type="checkbox" ${c.choisi ? 'checked' : ''} ${bloque ? 'disabled' : ''} onchange="setImportChamp(${i},'choisi',this.checked)" /></td>
+            <td><input class="surnom-input" type="date" value="${escHtml(c.date)}" onchange="setImportChamp(${i},'date',this.value)" /></td>
+            <td><input class="surnom-input" value="${escHtml(c.label)}" onchange="setImportChamp(${i},'label',this.value)" /></td>
+            <td><input class="surnom-input" value="${escHtml(c.heure)}" style="width:70px" onchange="setImportChamp(${i},'heure',this.value)" /></td>
+            <td><input class="surnom-input" value="${escHtml(c.surface)}" onchange="setImportChamp(${i},'surface',this.value)" /></td>
+            <td style="white-space:nowrap">${badges[c.statut]}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+      <div style="font-size:12px;color:#999;margin:8px 0">Saison : ${escHtml(saison && saisonsData[saison] ? saisonsData[saison].nom : 'aucune')}</div>
+      <div style="display:flex;gap:8px">
+        <button class="confirm-btn" style="flex:2" onclick="ajouterImport()" ${nb ? '' : 'disabled'}>+ Ajouter ${nb} match${nb > 1 ? 's' : ''}</button>
+        <button class="btn-danger" style="flex:1" onclick="annulerImport()">Annuler</button>
+      </div>`;
+  }
+
+  window.setImportChamp = function(i, champ, valeur) {
+    const c = importCandidats[i];
+    if (!c) return;
+    c[champ] = typeof valeur === 'string' ? valeur.trim() : valeur;
+    if (champ === 'heure') c.heure = cleHeure(c.heure) || c.heure;
+    renderImportPreview();
+  };
+
+  window.annulerImport = function() {
+    importCandidats = [];
+    document.getElementById('import-status').innerHTML = '';
+    renderImportPreview();
+  };
+
+  // Réduit l'image (max 2048 px) et la convertit en JPEG base64.
+  async function preparerImage(file) {
+    const bmp = await createImageBitmap(file);
+    const ratio = Math.min(1, 2048 / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bmp.width * ratio);
+    canvas.height = Math.round(bmp.height * ratio);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+  }
+
+  window.importerCapture = async function(file) {
+    const status = document.getElementById('import-status');
+    if (!file || !file.type.startsWith('image/')) return;
+    if (!cleApi) { status.innerHTML = '<div class="error-box">Configure d\'abord la clé API dans ⚙️ Configuration.</div>'; return; }
+    status.innerHTML = '<div class="points-total-box neutral">⏳ Lecture de la capture…</div>';
+    let A;
+    try {
+      A = await chargerSdk();
+      const image = await preparerImage(file);
+      const d = new Date();
+      const aujourdhui = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const client = new A({ apiKey: cleApi, dangerouslyAllowBrowser: true });
+      const message = await client.beta.messages.create({
+        model: 'claude-opus-5-5',
+        max_tokens: 16000,
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        output_config: {
+          effort: 'medium',
+          format: { type: 'json_schema', schema: SCHEMA_MATCHS },
+        },
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
+            { type: 'text', text: promptImport(aujourdhui) },
+          ],
+        }],
+      });
+      if (message.stop_reason === 'refusal') throw new Error('Claude a refusé de lire cette image.');
+      if (message.stop_reason === 'max_tokens') throw new Error('Réponse tronquée : essaie une capture avec moins de matchs.');
+      const texte = message.content.find(b => b.type === 'text')?.text;
+      let data;
+      try { data = JSON.parse(texte); } catch { throw new Error('Réponse illisible, réessaie.'); }
+      importCandidats = (data.matchs || []).map(m => ({
+        date: m.date,
+        label: (m.domicile ? 'vs ' : '@ ') + m.adversaire,
+        heure: cleHeure(m.heure) || m.heure,
+        surface: m.surface || '',
+      }));
+      status.innerHTML = importCandidats.length
+        ? `<div class="points-total-box neutral">${importCandidats.length} match(s) trouvé(s). Vérifie avant d'ajouter.</div>`
+        : '<div class="error-box">Aucun match des Vieilles Souches trouvé sur cette capture.</div>';
+      renderImportPreview();
+    } catch (e) {
+      status.innerHTML = `<div class="error-box">${escHtml(A ? messageErreurApi(A, e) : 'Impossible de charger le SDK Anthropic.')}</div>`;
+    }
+  };
+
+  window.ajouterImport = async function() {
+    statutsImport(); // revalide contre les matchs les plus récents
+    const choisis = importCandidats.filter(c => c.choisi && c.statut !== 'deja' && c.statut !== 'double');
+    const invalide = choisis.find(c => !/^\d{4}-\d{2}-\d{2}$/.test(c.date || '') || !c.label);
+    if (invalide) { alert('Chaque match doit avoir une date et un adversaire.'); return; }
+    if (!choisis.length) { renderImportPreview(); return; }
+    const nums = Object.keys(matchesData).map(k => parseInt(k.slice(6), 10)).filter(x => !isNaN(x));
+    let next = nums.length ? Math.max(...nums) + 1 : 0;
+    const saison = capSaison || saisonActive;
+    const changes = {};
+    choisis.forEach(c => {
+      const match = { label: c.label, date: c.date, surface: c.surface, heure: formatLong(c.date) + (c.heure ? ' à ' + c.heure : '') };
+      if (saison) match.saison = saison;
+      changes['match_' + next++] = match;
+    });
+    await update(ref(db, 'config/matches'), changes);
+    importCandidats = [];
+    renderImportPreview();
+    document.getElementById('import-status').innerHTML = `<div class="success-box" style="margin-top:0">✅ ${choisis.length} match${choisis.length > 1 ? 's' : ''} ajouté${choisis.length > 1 ? 's' : ''}</div>`;
+  };
+
+  // Coller une capture (Cmd+V) dans l'onglet Capitaine.
+  document.addEventListener('paste', (e) => {
+    if (!pinValidated || !cleApi || !document.getElementById('view-capitaine').classList.contains('active')) return;
+    const item = [...(e.clipboardData?.items || [])].find(it => it.type.startsWith('image/'));
+    if (!item) return;
+    e.preventDefault();
+    window.importerCapture(item.getAsFile());
+  });
+
   listenJoueurs();
   listenInactifs();
   listenMatches();
@@ -1335,6 +1649,7 @@
       activerCapitaine(user);
     } else if (!user && pinValidated) {
       pinValidated = false;
+      arreterCle();
       document.getElementById('auth-signin-section').style.display = 'block';
       document.getElementById('auth-user-section').style.display = 'none';
       document.getElementById('cap-content').style.display = 'none';

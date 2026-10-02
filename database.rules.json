@@ -26,6 +26,15 @@
     "config": {
       ".read": true,
       ".write": "auth != null && auth.uid === 'RvAkqW5p2aMQPelrsdkXLfOmi653'"
+    },
+
+    "secrets": {
+      ".read": "auth != null && auth.uid === 'RvAkqW5p2aMQPelrsdkXLfOmi653'",
+      ".write": "auth != null && auth.uid === 'RvAkqW5p2aMQPelrsdkXLfOmi653'",
+      "anthropicKey": {
+        ".validate": "newData.isString() && newData.val().beginsWith('sk-ant-') && newData.val().length < 300"
+      },
+      "$other": { ".validate": false }
     }
   }
 }
