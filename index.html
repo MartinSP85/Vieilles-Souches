@@ -270,8 +270,10 @@
                 <option value="">Toutes les cotes</option>
                 <option value="H12">H12</option>
                 <option value="H11">H11</option>
+                <option value="H10">H10</option>
                 <option value="W8">W8</option>
                 <option value="W7">W7</option>
+                <option value="W6">W6</option>
                 <option value="NC">NC</option>
               </select>
             </div>
@@ -287,8 +289,10 @@
             <option value="">— Cote —</option>
             <option value="H12">H12</option>
             <option value="H11">H11</option>
+            <option value="H10">H10</option>
             <option value="W8">W8</option>
             <option value="W7">W7</option>
+            <option value="W6">W6</option>
             <option value="NC">NC</option>
           </select>
           <button class="confirm-btn" onclick="ajouterJoueur()">+ Ajouter</button>
@@ -389,8 +393,8 @@
   // Liste des joueurs — stockée dans Firebase (config/joueurs).
   let joueursData = {};
   let joueursListener = null;
-  const COTES = ['H12', 'H11', 'W8', 'W7', 'NC'];
-  const POINTS = { H12: 10, H11: 20, W8: 10, W7: 20, NC: 10 };
+  const COTES = ['H12', 'H11', 'H10', 'W8', 'W7', 'W6', 'NC'];
+  const POINTS = { H12: 10, H11: 20, H10: 30, W8: 10, W7: 20, W6: 30, NC: 10 };
   let cotesData = {};
   let cotesListener = null;
   let numerosData = {};
